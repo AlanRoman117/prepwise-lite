@@ -55,6 +55,12 @@ the browser can call. A few things it deliberately does:
   through the same validation and sanitization a real backup file gets, and
   opens the same import preview for you to confirm — an agent gets no
   shortcut a hostile file wouldn't get.
+- **Reads go beyond a plain pantry dump.** `get_expiring_items` ranks what's
+  expiring soonest; `get_recipe_gaps` reports exactly what a recipe is short
+  on — with amounts — so an agent can ground a substitution in what's
+  actually on the shelf instead of guessing; `get_meal_plan_candidates` ranks
+  saved recipes for weekly planning, prioritising ones that use up an
+  ingredient before it's wasted.
 - **Proposed inventory writes are merge-only.** A misread photo may add the
   wrong item; it may never empty your pantry. The replace option is hidden
   for agent-sourced proposals, and the merge choice is enforced independently

@@ -415,6 +415,173 @@
         },
 
         {
+            name: PREFIX + 'get_expiring_items',
+            description:
+                'List pantry items that are expiring soon or today, or have already expired, '
+                + 'sorted with the most urgent first. Use this to answer "what is going to expire '
+                + 'soon" or "what should I use up first".',
+            annotations: { readOnlyHint: true, untrustedContentHint: true },
+            inputSchema: {
+                type: 'object',
+                properties: {
+                    includeExpired: {
+                        type: 'boolean',
+                        description: 'Include items that have already expired. Defaults to true.'
+                    },
+                    limit: {
+                        type: 'number',
+                        description: 'Maximum number of items to return (1-100). Defaults to 20.'
+                    }
+                }
+            },
+            execute(args) {
+                freshen();
+                const includeExpired = !(args && args.includeExpired === false);
+                const limit = Math.min(Math.max(Number(args && args.limit) || 20, 1), 100);
+
+                const items = inventory().filter(i => i.hasExpiration && (
+                    i.expirationStatus === 'expiringSoon'
+                    || i.expirationStatus === 'expiringToday'
+                    || (includeExpired && i.expirationStatus === 'expired')
+                )).sort((a, b) => (a.daysUntilExpiry ?? 0) - (b.daysUntilExpiry ?? 0));
+
+                if (!items.length) {
+                    return reply(includeExpired
+                        ? 'Nothing is expiring soon, and nothing has expired.'
+                        : 'Nothing is expiring soon.');
+                }
+
+                const shown = items.slice(0, limit);
+                const header = shown.length < items.length
+                    ? `${items.length} items need attention; showing the most urgent ${shown.length}.`
+                    : `${items.length} item${items.length === 1 ? '' : 's'} need attention, soonest first.`;
+                return reply([header, ''].concat(shown.map(describeItem)).join('\n'));
+            }
+        },
+
+        {
+            name: PREFIX + 'get_recipe_gaps',
+            description:
+                'For one recipe, list exactly which ingredients are missing, insufficient, or '
+                + 'spoiled in the pantry — with the amount still needed — plus what is currently '
+                + 'in the pantry. PrepWise has no substitution database of its own; use this to '
+                + 'ground a substitution suggestion in what is actually on hand, rather than '
+                + 'guessing at what might be in the kitchen.',
+            annotations: { readOnlyHint: true, untrustedContentHint: true },
+            inputSchema: {
+                type: 'object',
+                properties: {
+                    name: { type: 'string', description: 'The recipe name, or part of it.' }
+                },
+                required: ['name']
+            },
+            execute(args) {
+                freshen();
+                const wanted = String((args && args.name) || '').trim().toLowerCase();
+                if (!wanted) return failure('A recipe name is required.');
+
+                const recipe = recipes().find(r => String(r.name).toLowerCase().includes(wanted));
+                if (!recipe) {
+                    const names = recipes().map(r => r.name).slice(0, 40);
+                    return failure(names.length
+                        ? `No recipe matches "${wanted}". The cookbook has: ${names.join(', ')}.`
+                        : `No recipe matches "${wanted}" — there are no recipes saved yet.`);
+                }
+
+                const gaps = typeof getMissingIngredientsWithContext === 'function'
+                    ? getMissingIngredientsWithContext(recipe)
+                    : [];
+
+                if (!gaps.length) {
+                    return reply(`${recipe.name} has every ingredient in stock — nothing to substitute.`);
+                }
+
+                const lines = gaps.map(gap => {
+                    if (gap.reason === 'not-in-inventory') {
+                        return `- ${gap.item}: need ${gap.amount} ${gap.unit}, none in the pantry.`;
+                    }
+                    if (gap.reason === 'expired') {
+                        const days = gap.daysExpired;
+                        return `- ${gap.item}: need ${gap.amount} ${gap.unit}, what's in the pantry `
+                            + `expired ${days} day${days === 1 ? '' : 's'} ago.`;
+                    }
+                    return `- ${gap.item}: need ${gap.needed} more ${gap.unit} `
+                        + `(have ${gap.available} of ${gap.amount}).`;
+                });
+
+                // Full names only, not amounts — this is context for substitution
+                // ideas, not a second inventory listing (that is list_inventory's job).
+                const pantryNames = inventory().map(i => i.name);
+                const shownNames = pantryNames.slice(0, 40);
+                const pantryLine = pantryNames.length
+                    ? `Currently in the pantry: ${shownNames.join(', ')}`
+                        + (pantryNames.length > shownNames.length
+                            ? `, and ${pantryNames.length - shownNames.length} more.` : '.')
+                    : 'The pantry is currently empty.';
+
+                return reply([`${recipe.name} is missing:`, ...lines, '', pantryLine].join('\n'));
+            }
+        },
+
+        {
+            name: PREFIX + 'get_meal_plan_candidates',
+            description:
+                'Rank saved recipes for planning a week of cooking: which can be made right now, '
+                + 'which use up an ingredient that is expiring soon, and what is missing for the '
+                + 'rest. PrepWise does not assemble the plan itself — use this to build one, '
+                + 'prioritising recipes that use expiring ingredients before they are wasted.',
+            annotations: { readOnlyHint: true, untrustedContentHint: true },
+            inputSchema: {
+                type: 'object',
+                properties: {
+                    limit: {
+                        type: 'number',
+                        description: 'Maximum number of recipes to return (1-50). Defaults to 20.'
+                    }
+                }
+            },
+            execute(args) {
+                freshen();
+                const limit = Math.min(Math.max(Number(args && args.limit) || 20, 1), 50);
+                const all = recipes();
+                if (!all.length) return reply('There are no recipes saved yet to plan around.');
+
+                const canMake = typeof canMakeRecipe === 'function' ? canMakeRecipe : () => false;
+                const usesExpiring = typeof recipeUsesExpiringIngredients === 'function'
+                    ? recipeUsesExpiringIngredients : () => false;
+                const missingOf = typeof getMissingIngredients === 'function'
+                    ? recipe => getMissingIngredients(recipe).map(m => m.item)
+                    : () => [];
+
+                const ranked = all.map(recipe => ({
+                    recipe,
+                    makeable: canMake(recipe),
+                    expiring: usesExpiring(recipe),
+                    missing: missingOf(recipe)
+                })).sort((a, b) => {
+                    // Recipes that rescue an expiring ingredient and can be
+                    // cooked today sort first; those missing the most sort last.
+                    const score = entry => (entry.expiring ? 2 : 0) + (entry.makeable ? 1 : 0);
+                    return score(b) - score(a) || a.missing.length - b.missing.length;
+                });
+
+                const shown = ranked.slice(0, limit);
+                const lines = shown.map(({ recipe, makeable, expiring, missing }) => {
+                    const serves = recipe.servings ? ` (serves ${recipe.servings})` : '';
+                    const tag = expiring ? ' [uses an expiring ingredient]' : '';
+                    return makeable
+                        ? `- ${recipe.name}${serves}: can make now${tag}`
+                        : `- ${recipe.name}${serves}: missing ${missing.join(', ') || 'ingredients'}${tag}`;
+                });
+
+                const header = shown.length < ranked.length
+                    ? `${ranked.length} recipes; showing the top ${shown.length} for planning.`
+                    : `${ranked.length} recipe${ranked.length === 1 ? '' : 's'}, ranked for planning:`;
+                return reply([header, ''].concat(lines).join('\n'));
+            }
+        },
+
+        {
             name: PREFIX + 'propose_inventory_items',
             description:
                 'Propose adding items to the pantry — for example after reading a photograph of '

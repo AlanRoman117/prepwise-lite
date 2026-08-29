@@ -1,0 +1,3248 @@
+/* Prepwise - Main Stylesheet
+ *
+ * Theme: "Kitchen Garden" - grassy greens over a wooden-sepia ground.
+ *
+ * Everything visual is driven by the token ramps in :root below. The utility
+ * class names still read gray/blue/green/etc. because they are used in
+ * index.html and in the template strings in app.js, but they are slots rather
+ * than literal colors: `blue` is the oak/walnut accent, `gray` is warm sepia
+ * stone, `yellow` is honey, `orange` terracotta, `red` brick, `purple` plum.
+ * Retheming the app means editing the ramps, not the markup.
+ *
+ * A dark ("evening walnut") palette swaps the same tokens under
+ * :root[data-theme="dark"]. The attribute is set by display.js before first
+ * paint; Settings offers Light / Dark / Follow system, and "system" is resolved
+ * there rather than in a media query here - see the note above that block.
+ */
+
+/*
+ * Inter, vendored locally. Prepwise makes no runtime network requests, so the
+ * font is served from assets/fonts/ rather than Google Fonts. These are variable
+ * font files covering weights 300-700 in a single file per subset.
+ * Source: https://fonts.gstatic.com/s/inter/v20/ (Inter v20, SIL Open Font License 1.1)
+ */
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 300 700;
+    font-display: swap;
+    src: url('../fonts/inter-latin.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+        U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191,
+        U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 300 700;
+    font-display: swap;
+    src: url('../fonts/inter-latin-ext.woff2') format('woff2');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+        U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+        U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* ---------------------------------------------------------------------------
+ * Tokens - light ("morning kitchen")
+ * ------------------------------------------------------------------------ */
+:root {
+    /* Tells the browser which way to render what CSS does not reach: scrollbars,
+       select popups, the date picker. Overridden in the dark block below. */
+    color-scheme: light;
+
+    /* Sepia stone - neutrals.
+       Step 50 is the panel nested *inside* a card (`.bg-gray-50`), so it has to
+       stay a shade below --surface or it reads as raised rather than recessed.
+       It moved down with the surface. */
+    --n-50:  #f1e6d0;
+    --n-100: #eaddc4;
+    --n-200: #e7dccb;
+    --n-300: #d8c9b2;
+    --n-400: #b9a68d;
+    --n-500: #93806a;
+    --n-600: #736251;
+    --n-700: #57493c;
+    --n-800: #3d3229;
+    --n-900: #29211a;
+    --n-t-50:  #f1e6d0;
+    --n-t-100: #eaddc4;
+    --n-t-200: #e7dccb;
+    --n-t-300: #d8c9b2;
+    --n-t-400: #94826d;
+    --n-t-500: #63523f;
+    --n-t-600: #5f4f3f;
+    --n-t-700: #54463a;
+    --n-t-800: #3a3027;
+    --n-t-900: #261f19;
+
+    /* Garden green - brand */
+    --g-50:  #e3e9d8;
+    --g-100: #d8e4c8;
+    --g-200: #c6dcac;
+    --g-300: #a6c684;
+    --g-400: #86b05e;
+    --g-500: #6d9948;
+    --g-600: #567e39;
+    --g-700: #45662e;
+    --g-800: #365026;
+    --g-900: #27391d;
+    --g-t-50:  #e3e9d8;
+    --g-t-100: #d8e4c8;
+    --g-t-200: #c6dcac;
+    --g-t-300: #a6c684;
+    --g-t-400: #6f9a48;
+    --g-t-500: #5b8438;
+    --g-t-600: #4d7434;
+    --g-t-700: #3f5f2b;
+    --g-t-800: #335025;
+    --g-t-900: #26391c;
+
+    /* Oak / walnut - wooden accent */
+    --w-50:  #ede6dd;
+    --w-100: #ebdec9;
+    --w-200: #e1caa9;
+    --w-300: #ccae84;
+    --w-400: #b48f5f;
+    --w-500: #a37a4d;
+    --w-600: #86633f;
+    --w-700: #6b4d30;
+    --w-800: #543c26;
+    --w-900: #3e2c1c;
+    --w-t-50:  #ede6dd;
+    --w-t-100: #ebdec9;
+    --w-t-200: #e1caa9;
+    --w-t-300: #ccae84;
+    --w-t-400: #98703f;
+    --w-t-500: #8a6339;
+    --w-t-600: #7d5a38;
+    --w-t-700: #654729;
+    --w-t-800: #513a24;
+    --w-t-900: #3c2b1b;
+
+    /* Honey */
+    --h-50:  #efe7d1;
+    --h-100: #ebdfbb;
+    --h-200: #f0d999;
+    --h-300: #e3bf68;
+    --h-400: #d0a33c;
+    --h-500: #b98c22;
+    /* Step 600 carries white labels (.bg-yellow-600, the Backup Now button), so
+       it is pinned by contrast, not by the ramp's spacing: #9a7118 measured
+       4.42:1 against white and missed AA. */
+    --h-600: #936c16;
+    --h-700: #7d5a12;
+    --h-800: #63470f;
+    --h-900: #4a350b;
+    --h-t-50:  #efe7d1;
+    --h-t-100: #ebdfbb;
+    --h-t-200: #f0d999;
+    --h-t-300: #e3bf68;
+    --h-t-400: #a37a15;
+    --h-t-500: #926c13;
+    --h-t-600: #8a6414;
+    --h-t-700: #6f5010;
+    --h-t-800: #5a410e;
+    --h-t-900: #43300a;
+
+    /* Toasted amber */
+    --a-50:  #f0e7d0;
+    --a-100: #eddebc;
+    --a-200: #ecd3a0;
+    --a-300: #dcb974;
+    --a-400: #c69c49;
+    --a-500: #ad8229;
+    --a-600: #8f6a1c;
+    --a-700: #745514;
+    --a-800: #5c4310;
+    --a-900: #46330c;
+    --a-t-50:  #f0e7d0;
+    --a-t-100: #eddebc;
+    --a-t-200: #ecd3a0;
+    --a-t-300: #dcb974;
+    --a-t-400: #9c7420;
+    --a-t-500: #8b671b;
+    --a-t-600: #7e5d18;
+    --a-t-700: #684c13;
+    --a-t-800: #543e10;
+    --a-t-900: #40300c;
+
+    /* Terracotta */
+    --t-50:  #f3e5d8;
+    --t-100: #f5dbc5;
+    --t-200: #f2c19c;
+    --t-300: #e6a06e;
+    --t-400: #d68046;
+    --t-500: #c2662c;
+    --t-600: #a5521f;
+    --t-700: #86411a;
+    --t-800: #6b3414;
+    --t-900: #52280f;
+    --t-t-50:  #f3e5d8;
+    --t-t-100: #f5dbc5;
+    --t-t-200: #f2c19c;
+    --t-t-300: #e6a06e;
+    --t-t-400: #b25a22;
+    --t-t-500: #a5521f;
+    --t-t-600: #9c4c1c;
+    --t-t-700: #813e19;
+    --t-t-800: #663213;
+    --t-t-900: #4e260e;
+
+    /* Brick */
+    --r-50:  #f1e5e1;
+    --r-100: #f6d9d1;
+    --r-200: #f0b7a9;
+    --r-300: #e08e7b;
+    --r-400: #cd6853;
+    --r-500: #bb4b36;
+    --r-600: #a53c2a;
+    --r-700: #862f20;
+    --r-800: #6b261a;
+    --r-900: #521c13;
+    --r-t-50:  #f1e5e1;
+    --r-t-100: #f6d9d1;
+    --r-t-200: #f0b7a9;
+    --r-t-300: #e08e7b;
+    --r-t-400: #b04530;
+    --r-t-500: #a94028;
+    --r-t-600: #a03927;
+    --r-t-700: #832d1f;
+    --r-t-800: #692519;
+    --r-t-900: #501b12;
+
+    /* Plum */
+    --p-50:  #ece6ea;
+    --p-100: #ebdbe6;
+    --p-200: #dcbcd2;
+    --p-300: #c599b8;
+    --p-400: #ab7399;
+    --p-500: #925a80;
+    --p-600: #7b4a6b;
+    --p-700: #643b57;
+    --p-800: #4f2f45;
+    --p-900: #3b2333;
+    --p-t-50:  #ece6ea;
+    --p-t-100: #ebdbe6;
+    --p-t-200: #dcbcd2;
+    --p-t-300: #c599b8;
+    --p-t-400: #8d5579;
+    --p-t-500: #82506f;
+    --p-t-600: #7b4a6b;
+    --p-t-700: #643b57;
+    --p-t-800: #4f2f45;
+    --p-t-900: #3b2333;
+
+    /*
+     * Surfaces, ground and furniture.
+     *
+     * Cards are cherry-sepia, not white. A white card on a wooden ground is the
+     * brightest thing on the screen by a wide margin, and this is an app you
+     * read from across a kitchen for twenty minutes at a stretch.
+     *
+     * The whole light "paper" range is pitched off one measured reference: the
+     * Shopping List panel (--t-50), which read comfortably at 0.848 luminance
+     * sitting directly on the board. The card matches it at 0.847, and every
+     * --x-50 tint sits just below so a callout still reads as a callout. A first
+     * pass at ~0.90 was too timid to see; a second, done by scaling brightness
+     * alone, hit the number but came out grey, because chromaticity survives
+     * scaling and the warmth has to be dialled in separately. Hence the hand-set
+     * values here: lightness AND warmth both matter.
+     *
+     * Legibility is unaffected - body ink clears 7.7:1, well past AA - and
+     * `theme.spec.js` holds the surface above 0.8 so "warm" cannot drift into
+     * "dim", and holds every tint at or below it so glare cannot creep back.
+     *
+     * --field stays a step brighter than the card it sits on, so an input still
+     * reads as somewhere to write rather than as more card.
+     */
+    --surface: #f7ecd8;
+    --surface-raised: #f9efdc;
+    --field: #fbf3e2;
+    --bg-top: #f7f1e5;
+    --bg-bottom: #ebdfcc;
+    --border-soft: #ece1d0;
+    --border-strong: #d9c9b2;
+    /* Board species. Kept in a narrow, light value range on purpose - see the
+       note on body. Character comes from hue, grain and the glue lines. */
+    --wood-maple:  #f2e3c2;
+    --wood-cherry: #e9c8a6;
+    --wood-walnut: #e0c8aa;
+    --wood-seam:   #c9a97f;
+    --wood-sheen:  rgba(255, 255, 255, 0.22);
+    --wood-shade:  rgba(120, 84, 46, 0.07);
+    --grain:       rgba(107, 77, 48, 0.03);
+    --grain-fine:  rgba(107, 77, 48, 0.016);
+
+    /* The nav rail reads as a cutting board */
+    --board-top: #e8d6ba;
+    --board-bottom: #dcc5a3;
+    --board-line: #cbb08a;
+    --board-grain: rgba(120, 84, 46, 0.10);
+
+    /* The overview hero reads as a planted bed */
+    --hero-from: #5f8f3f;
+    --hero-via: #3f6628;
+    --hero-to: #2f4c21;
+    --hero-sub: rgba(255, 255, 255, 0.82);
+
+    --ring: rgba(109, 153, 72, 0.40);
+    --ring-solid: #6d9948;
+    --scrim: rgba(44, 31, 19, 0.55);
+    --shadow-sm: 0 1px 2px rgba(72, 52, 32, 0.07), 0 1px 1px rgba(72, 52, 32, 0.04);
+    --shadow-md: 0 2px 4px rgba(72, 52, 32, 0.07), 0 8px 18px -10px rgba(72, 52, 32, 0.22);
+    --shadow-lg: 0 4px 8px rgba(72, 52, 32, 0.08), 0 18px 34px -14px rgba(72, 52, 32, 0.30);
+    /* The hero's shadow, for anything else resting directly on the board. */
+    --shadow-raised: 0 2px 4px rgba(72, 52, 32, 0.10), 0 12px 24px -10px rgba(72, 52, 32, 0.34);
+
+    --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    /* Locally installed serifs only - no webfont, so the CSP stays intact. */
+    --font-display: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, 'Times New Roman', serif;
+}
+
+/* ---------------------------------------------------------------------------
+ * Tokens - dark ("evening walnut")
+ *
+ * Only the ramps move. Note the deliberate inversions: the tint steps (50-200)
+ * become deep browns, the text ramps (--x-t-*) lighten, and step 700 becomes
+ * *lighter* than 600 so `hover:bg-*-700` still reads as "this button lit up".
+ * ------------------------------------------------------------------------ */
+/*
+ * Selected by the attribute, not by the media query.
+ *
+ * display.js resolves the preference in <head> and always stamps an explicit
+ * data-theme onto <html> - "system" is turned into light or dark there, and
+ * re-resolved when the OS flips. That keeps this palette in one place: a
+ * prefers-color-scheme copy *and* an attribute copy would be two hundred lines
+ * of tokens to hold in sync by hand, and they would drift.
+ */
+:root[data-theme="dark"] {
+    color-scheme: dark;
+
+    --n-50:  #241d17;
+    --n-100: #2f261e;
+    --n-200: #3a2f25;
+    --n-300: #4a3c2f;
+    --n-400: #6b5a49;
+    --n-500: #8b7861;
+    --n-600: #a8947c;
+    --n-700: #c7b69e;
+    --n-800: #e6dac6;
+    --n-900: #f6efe2;
+    --n-t-50:  #241d17;
+    --n-t-100: #2f261e;
+    --n-t-200: #3a2f25;
+    --n-t-300: #6b5a49;
+    --n-t-400: #9c8b76;
+    --n-t-500: #b3a18a;
+    --n-t-600: #c6b59d;
+    --n-t-700: #ddd0ba;
+    --n-t-800: #f0e5d3;
+    --n-t-900: #fbf6ec;
+
+    --g-50:  #1d2a16;
+    --g-100: #26371c;
+    --g-200: #324823;
+    --g-300: #435e2c;
+    --g-400: #587a38;
+    --g-500: #6a9245;
+    --g-600: #55803a;
+    --g-700: #6a9a48;
+    --g-800: #7fb257;
+    --g-900: #97c76f;
+    --g-t-50:  #1d2a16;
+    --g-t-100: #26371c;
+    --g-t-200: #324823;
+    --g-t-300: #6c9a4a;
+    --g-t-400: #7fae59;
+    --g-t-500: #8dbf63;
+    --g-t-600: #99c973;
+    --g-t-700: #a9d385;
+    --g-t-800: #bfdf9f;
+    --g-t-900: #d4ebbe;
+
+    --w-50:  #2a2018;
+    --w-100: #362a1f;
+    --w-200: #453628;
+    --w-300: #574433;
+    --w-400: #755b41;
+    --w-500: #96754d;
+    --w-600: #7a5836;
+    --w-700: #96704a;
+    --w-800: #b08a5f;
+    --w-900: #c8a478;
+    --w-t-50:  #2a2018;
+    --w-t-100: #362a1f;
+    --w-t-200: #453628;
+    --w-t-300: #8a6949;
+    --w-t-400: #b28c60;
+    --w-t-500: #c49b6a;
+    --w-t-600: #cfa572;
+    --w-t-700: #ddb98c;
+    --w-t-800: #e8cba6;
+    --w-t-900: #f0dcc2;
+
+    --h-50:  #2b2310;
+    --h-100: #382d14;
+    --h-200: #493a19;
+    --h-300: #5d4a1f;
+    --h-400: #7d6428;
+    --h-500: #9c7d31;
+    --h-600: #8a6414;
+    --h-700: #a37c22;
+    --h-800: #bd9433;
+    --h-900: #d4ae4c;
+    --h-t-50:  #2b2310;
+    --h-t-100: #382d14;
+    --h-t-200: #493a19;
+    --h-t-300: #8a6c22;
+    --h-t-400: #bd9a3c;
+    --h-t-500: #cfa943;
+    --h-t-600: #d9b44a;
+    --h-t-700: #e3c268;
+    --h-t-800: #eed296;
+    --h-t-900: #f5e2b8;
+
+    --a-50:  #2c2412;
+    --a-100: #392e17;
+    --a-200: #4a3b1d;
+    --a-300: #5e4b24;
+    --a-400: #7e662e;
+    --a-500: #9c8039;
+    --a-600: #8a6c22;
+    --a-700: #a3822f;
+    --a-800: #c0a04a;
+    --a-900: #dcbd6c;
+    --a-t-50:  #2c2412;
+    --a-t-100: #392e17;
+    --a-t-200: #4a3b1d;
+    --a-t-300: #8a7030;
+    --a-t-400: #bb9a48;
+    --a-t-500: #c9a854;
+    --a-t-600: #d4b360;
+    --a-t-700: #e0c37e;
+    --a-t-800: #ecd6a6;
+    --a-t-900: #f3e5c4;
+
+    --t-50:  #2e1c12;
+    --t-100: #3c2417;
+    --t-200: #4e2e1c;
+    --t-300: #653b23;
+    --t-400: #85502e;
+    --t-500: #a1613a;
+    --t-600: #8f4519;
+    --t-700: #ab5a28;
+    --t-800: #c4713c;
+    --t-900: #d78d5b;
+    --t-t-50:  #2e1c12;
+    --t-t-100: #3c2417;
+    --t-t-200: #4e2e1c;
+    --t-t-300: #9c5730;
+    --t-t-400: #cf7a4e;
+    --t-t-500: #db8558;
+    --t-t-600: #e39066;
+    --t-t-700: #eaa682;
+    --t-t-800: #f1bfa2;
+    --t-t-900: #f6d5c0;
+
+    --r-50:  #2f1713;
+    --r-100: #3d1d18;
+    --r-200: #50251e;
+    --r-300: #663026;
+    --r-400: #874034;
+    --r-500: #a34f40;
+    --r-600: #93331f;
+    --r-700: #b04430;
+    --r-800: #c65b45;
+    --r-900: #dd7a64;
+    --r-t-50:  #2f1713;
+    --r-t-100: #3d1d18;
+    --r-t-200: #50251e;
+    --r-t-300: #a04a38;
+    --r-t-400: #d76e57;
+    --r-t-500: #e07a62;
+    --r-t-600: #e78872;
+    --r-t-700: #ed9d89;
+    --r-t-800: #f2b5a5;
+    --r-t-900: #f7cec3;
+
+    --p-50:  #2a1a26;
+    --p-100: #37232f;
+    --p-200: #472c3c;
+    --p-300: #5b3a4d;
+    --p-400: #774f66;
+    --p-500: #8f6179;
+    --p-600: #6f4160;
+    --p-700: #8a5477;
+    --p-800: #a56a90;
+    --p-900: #bd85a8;
+    --p-t-50:  #2a1a26;
+    --p-t-100: #37232f;
+    --p-t-200: #472c3c;
+    --p-t-300: #966283;
+    --p-t-400: #c087ac;
+    --p-t-500: #c992b5;
+    --p-t-600: #d29ebe;
+    --p-t-700: #dcb0c9;
+    --p-t-800: #e7c6d8;
+    --p-t-900: #f0dae7;
+
+    --surface: #2b231c;
+    --surface-raised: #322921;
+    --field: #241d17;
+    --bg-top: #1f1811;
+    --bg-bottom: #261e16;
+    --border-soft: #3a2f25;
+    --border-strong: #4a3c2f;
+    /* Oiled walnut under low light: the same board, in the evening. */
+    --wood-maple:  #3b2e22;
+    --wood-cherry: #4a2f1c;
+    --wood-walnut: #2b2016;
+    --wood-seam:   #1a120c;
+    --wood-sheen:  rgba(255, 228, 186, 0.05);
+    --wood-shade:  rgba(0, 0, 0, 0.28);
+    --grain:       rgba(255, 226, 186, 0.032);
+    --grain-fine:  rgba(255, 226, 186, 0.02);
+
+    --board-top: #3b2f24;
+    --board-bottom: #31261d;
+    --board-line: #4b3b2c;
+    --board-grain: rgba(255, 220, 175, 0.05);
+
+    --hero-from: #46702f;
+    --hero-via: #2f5220;
+    --hero-to: #223c1b;
+    --hero-sub: rgba(255, 255, 255, 0.78);
+
+    --ring: rgba(134, 176, 94, 0.45);
+    --ring-solid: #86b05e;
+    --scrim: rgba(12, 8, 5, 0.68);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.32);
+    --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.30), 0 8px 18px -10px rgba(0, 0, 0, 0.55);
+    --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.32), 0 18px 34px -14px rgba(0, 0, 0, 0.65);
+    --shadow-raised: 0 2px 4px rgba(0, 0, 0, 0.34), 0 12px 24px -10px rgba(0, 0, 0, 0.62);
+}
+
+/* ---------------------------------------------------------------------------
+ * Reset and base
+ * ------------------------------------------------------------------------ */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/*
+ * The ground is an edge-grain butcher block: strips of maple, cherry and walnut
+ * glued side by side, the way a handmade board is actually built.
+ *
+ * The strips live here as one non-repeating gradient tiled every 1200px, so the
+ * widths and the species order vary the way a real board's do rather than
+ * alternating on a beat. Each boundary carries a thin dark glue line.
+ *
+ * Grain and polish are layered on top in body::before.
+ *
+ * Note on value range: the board is deliberately kept light. Several bits of
+ * text (the tagline, the empty-state messages) sit directly on it with no card
+ * behind them, so the darkest strip has to stay bright enough to carry them.
+ * Species is expressed through hue and grain rather than through darkness.
+ */
+body {
+    font-family: var(--font-body);
+    line-height: 1.6;
+    color: var(--n-t-700);
+    background-color: var(--wood-maple);
+    background-image: linear-gradient(90deg,
+        var(--wood-maple) 0 414px,
+        var(--wood-seam) 416px,
+        var(--wood-cherry) 418px 702px,
+        var(--wood-seam) 704px,
+        var(--wood-maple) 706px 1198px,
+        var(--wood-seam) 1200px,
+        var(--wood-walnut) 1202px 1406px,
+        var(--wood-seam) 1408px,
+        var(--wood-maple) 1410px 1878px,
+        var(--wood-seam) 1880px,
+        var(--wood-cherry) 1882px 2222px,
+        var(--wood-seam) 2224px,
+        var(--wood-maple) 2226px 2702px,
+        var(--wood-seam) 2704px,
+        var(--wood-walnut) 2706px 2894px,
+        var(--wood-seam) 2896px,
+        var(--wood-maple) 2898px 3438px,
+        var(--wood-seam) 3440px,
+        var(--wood-cherry) 3442px 3758px,
+        var(--wood-seam) 3760px,
+        var(--wood-maple) 3762px 4318px,
+        var(--wood-seam) 4320px,
+        var(--wood-walnut) 4322px 4558px,
+        var(--wood-seam) 4560px,
+        var(--wood-maple) 4562px 4800px);
+    background-size: 4800px 100%;
+    background-attachment: fixed;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+}
+
+/*
+ * Butcher block over the whole ground.
+ *
+ * Four layers, all pure CSS - no request, nothing for the CSP to block:
+ *   1. plank seams every ~13rem, the width of a real board's glued strip
+ *   2-4. grain, three passes whose periods share no common factor (37/53/89)
+ *        so the eye never finds the repeat, at slightly different angles so
+ *        they cross rather than stack
+ *
+ * The stops feather rather than switch, which is the difference between wood
+ * grain and pinstripes. Earlier versions used a 1px line every 11px; at that
+ * spacing it read as corduroy.
+ */
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image:
+        /* the polish: soft light falling across a finished surface */
+        radial-gradient(70% 55% at 12% -8%, var(--wood-sheen), transparent 70%),
+        /* a little weight at the foot so the board sits rather than floats */
+        linear-gradient(180deg, transparent 55%, var(--wood-shade)),
+        /* grain: three feathered passes, coprime periods, angles a hair apart
+           so they cross inside a strip instead of stacking into stripes */
+        repeating-linear-gradient(90.35deg,
+            transparent 0 52px,
+            var(--grain) 59px,
+            transparent 66px 107px),
+        repeating-linear-gradient(89.55deg,
+            transparent 0 94px,
+            var(--grain-fine) 105px,
+            transparent 116px 170px),
+        repeating-linear-gradient(90.2deg,
+            transparent 0 193px,
+            var(--grain) 202px,
+            transparent 211px 271px);
+}
+
+#app {
+    position: relative;
+    z-index: 1;
+}
+
+h1, h2, h3, .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+}
+
+h1 {
+    line-height: 1.15;
+}
+
+::selection {
+    background: var(--g-200);
+    color: var(--n-t-900);
+}
+
+/* The page header gets a sprig of green and a hairline of grain beneath it. */
+#app > div > header {
+    position: relative;
+    padding-bottom: 1.25rem;
+}
+
+#app > div > header::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    height: 3px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--g-500) 0, var(--g-400) 12%, var(--w-300) 26%, var(--border-soft) 55%, transparent 100%);
+}
+
+/* ---------------------------------------------------------------------------
+ * Utility classes
+ * ------------------------------------------------------------------------ */
+.hidden {
+    display: none !important;
+}
+
+.block {
+    display: block;
+}
+
+.inline-block {
+    display: inline-block;
+}
+
+.inline-flex {
+    display: inline-flex;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.text-right {
+    text-align: right;
+}
+
+.capitalize {
+    text-transform: capitalize;
+}
+
+.italic {
+    font-style: italic;
+}
+
+.list-disc {
+    list-style-type: disc;
+}
+
+.list-inside {
+    list-style-position: inside;
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.flex {
+    display: flex;
+}
+
+.flex-wrap {
+    flex-wrap: wrap;
+}
+
+.items-center {
+    align-items: center;
+}
+
+.justify-between {
+    justify-content: space-between;
+}
+
+.justify-center {
+    justify-content: center;
+}
+
+.gap-1 {
+    gap: 0.25rem;
+}
+
+.gap-2 {
+    gap: 0.5rem;
+}
+
+.gap-3 {
+    gap: 0.75rem;
+}
+
+.gap-4 {
+    gap: 1rem;
+}
+
+.gap-6 {
+    gap: 1.5rem;
+}
+
+.space-y-1 > * + * {
+    margin-top: 0.25rem;
+}
+
+.space-y-2 > * + * {
+    margin-top: 0.5rem;
+}
+
+.space-y-3 > * + * {
+    margin-top: 0.75rem;
+}
+
+.space-y-4 > * + * {
+    margin-top: 1rem;
+}
+
+.space-y-6 > * + * {
+    margin-top: 1.5rem;
+}
+
+.grid {
+    display: grid;
+}
+
+.grid-cols-1 {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+.grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.grid-cols-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+/* Layout */
+.min-h-screen {
+    min-height: 100vh;
+}
+
+.max-w-4xl {
+    max-width: 56rem;
+}
+
+.mx-auto {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.p-1 {
+    padding: 0.25rem;
+}
+
+.p-2 {
+    padding: 0.5rem;
+}
+
+.p-3 {
+    padding: 0.75rem;
+}
+
+.p-4 {
+    padding: 1rem;
+}
+
+.p-5 {
+    padding: 1.25rem;
+}
+
+.p-6 {
+    padding: 1.5rem;
+}
+
+.p-8 {
+    padding: 2rem;
+}
+
+.px-2 {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+}
+
+.px-3 {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+}
+
+.px-4 {
+    padding-left: 1rem;
+    padding-right: 1rem;
+}
+
+.px-5 {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+}
+
+.px-6 {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+}
+
+.py-1 {
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+}
+
+.py-1\.5 {
+    padding-top: 0.375rem;
+    padding-bottom: 0.375rem;
+}
+
+.py-2 {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+}
+
+.py-2\.5 {
+    padding-top: 0.625rem;
+    padding-bottom: 0.625rem;
+}
+
+.py-3 {
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+}
+
+.py-8 {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}
+
+.py-12 {
+    padding-top: 3rem;
+    padding-bottom: 3rem;
+}
+
+.pb-2 {
+    padding-bottom: 0.5rem;
+}
+
+.pb-8 {
+    padding-bottom: 2rem;
+}
+
+.pl-10 {
+    padding-left: 2.5rem;
+}
+
+.pr-4 {
+    padding-right: 1rem;
+}
+
+.pt-1 {
+    padding-top: 0.25rem;
+}
+
+.pt-3 {
+    padding-top: 0.75rem;
+}
+
+.mb-0 {
+    margin-bottom: 0;
+}
+
+.mb-1 {
+    margin-bottom: 0.25rem;
+}
+
+.mb-2 {
+    margin-bottom: 0.5rem;
+}
+
+.mb-3 {
+    margin-bottom: 0.75rem;
+}
+
+.mb-4 {
+    margin-bottom: 1rem;
+}
+
+.mb-6 {
+    margin-bottom: 1.5rem;
+}
+
+.mb-8 {
+    margin-bottom: 2rem;
+}
+
+.mb-10 {
+    margin-bottom: 2.5rem;
+}
+
+.mb-12 {
+    margin-bottom: 3rem;
+}
+
+.mb-16 {
+    margin-bottom: 4rem;
+}
+
+.mt-1 {
+    margin-top: 0.25rem;
+}
+
+.mt-2 {
+    margin-top: 0.5rem;
+}
+
+.mt-3 {
+    margin-top: 0.75rem;
+}
+
+.mt-4 {
+    margin-top: 1rem;
+}
+
+.mt-6 {
+    margin-top: 1.5rem;
+}
+
+.ml-1 {
+    margin-left: 0.25rem;
+}
+
+.ml-3 {
+    margin-left: 0.75rem;
+}
+
+.mx-2 {
+    margin-left: 0.5rem;
+    margin-right: 0.5rem;
+}
+
+/* Typography */
+.text-xs {
+    font-size: 0.75rem;
+    line-height: 1rem;
+}
+
+.text-sm {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+}
+
+.text-lg {
+    font-size: 1.125rem;
+    line-height: 1.75rem;
+}
+
+.text-xl {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+}
+
+.text-2xl {
+    font-size: 1.5rem;
+    line-height: 2rem;
+}
+
+.text-3xl {
+    font-size: 1.875rem;
+    line-height: 2.25rem;
+}
+
+.text-4xl {
+    font-size: 2.25rem;
+    line-height: 2.5rem;
+}
+
+.text-5xl {
+    font-size: 3rem;
+    line-height: 1;
+}
+
+.text-6xl {
+    font-size: 3.75rem;
+    line-height: 1;
+}
+
+.font-bold {
+    font-weight: 700;
+}
+
+.font-semibold {
+    font-weight: 600;
+}
+
+.font-medium {
+    font-weight: 500;
+}
+
+.whitespace-nowrap {
+    white-space: nowrap;
+}
+
+.leading-relaxed {
+    line-height: 1.625;
+}
+
+.text-white {
+    color: #ffffff;
+}
+
+.bg-white {
+    background-color: var(--surface);
+}
+
+.bg-black {
+    background-color: var(--scrim);
+}
+
+.bg-opacity-50 {
+    background-color: var(--scrim);
+}
+
+/* Gradient helpers (the overview hero paints itself in .hero-card) */
+.bg-gradient-to-br {
+    background-image: linear-gradient(to bottom right, var(--tw-gradient-from), var(--tw-gradient-to));
+}
+
+.from-gray-50 {
+    --tw-gradient-from: var(--n-50);
+}
+
+.to-gray-100 {
+    --tw-gradient-to: var(--n-100);
+}
+
+.from-blue-500 {
+    --tw-gradient-from: var(--w-500);
+}
+
+.to-blue-600 {
+    --tw-gradient-to: var(--w-600);
+}
+
+.from-green-500 {
+    --tw-gradient-from: var(--g-500);
+}
+
+.to-green-700 {
+    --tw-gradient-to: var(--g-700);
+}
+
+/* Borders */
+.border {
+    border-width: 1px;
+    border-style: solid;
+    border-color: var(--border-soft);
+}
+
+.border-2 {
+    border-width: 2px;
+    border-style: solid;
+}
+
+.border-t {
+    border-top: 1px solid var(--border-soft);
+}
+
+.border-b-2 {
+    border-bottom-width: 2px;
+    border-bottom-style: solid;
+    border-bottom-color: var(--border-soft);
+}
+
+.border-l-4 {
+    border-left-width: 4px;
+    border-left-style: solid;
+}
+
+.border-transparent {
+    border-color: transparent;
+}
+
+/* Border radius */
+.rounded {
+    border-radius: 0.375rem;
+}
+
+.rounded-lg {
+    border-radius: 0.625rem;
+}
+
+.rounded-xl {
+    border-radius: 0.875rem;
+}
+
+.rounded-2xl {
+    border-radius: 1.125rem;
+}
+
+.rounded-full {
+    border-radius: 9999px;
+}
+
+/* Shadows */
+.shadow {
+    box-shadow: var(--shadow-raised);
+}
+
+.shadow-lg {
+    box-shadow: var(--shadow-lg);
+}
+
+/* Transitions */
+.transition {
+    transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 160ms;
+}
+
+.transition-all {
+    transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Position */
+.fixed {
+    position: fixed;
+}
+
+.relative {
+    position: relative;
+}
+
+.absolute {
+    position: absolute;
+}
+
+.inset-0 {
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+}
+
+.left-3 {
+    left: 0.75rem;
+}
+
+.top-1\/2 {
+    top: 50%;
+}
+
+.transform {
+    transform: translate(var(--tw-translate-x, 0), var(--tw-translate-y, 0));
+}
+
+.-translate-y-1\/2 {
+    --tw-translate-y: -50%;
+}
+
+.z-50 {
+    z-index: 50;
+}
+
+/* Sizing */
+.w-4 {
+    width: 1rem;
+}
+
+.w-5 {
+    width: 1.25rem;
+}
+
+.w-6 {
+    width: 1.5rem;
+}
+
+.w-8 {
+    width: 2rem;
+}
+
+.w-12 {
+    width: 3rem;
+}
+
+.w-16 {
+    width: 4rem;
+}
+
+.w-20 {
+    width: 5rem;
+}
+
+.w-24 {
+    width: 6rem;
+}
+
+.w-full {
+    width: 100%;
+}
+
+.h-3 {
+    height: 0.75rem;
+}
+
+.h-4 {
+    height: 1rem;
+}
+
+.h-5 {
+    height: 1.25rem;
+}
+
+.h-6 {
+    height: 1.5rem;
+}
+
+.h-8 {
+    height: 2rem;
+}
+
+.h-12 {
+    height: 3rem;
+}
+
+.h-16 {
+    height: 4rem;
+}
+
+.max-w-lg {
+    max-width: 32rem;
+}
+
+.max-w-2xl {
+    max-width: 42rem;
+}
+
+.max-h-90vh,
+.max-h-\[90vh\] {
+    max-height: 90vh;
+}
+
+/* Flexbox */
+.flex-1 {
+    flex: 1 1 0%;
+}
+
+.flex-shrink-0 {
+    flex-shrink: 0;
+}
+
+.flex-col {
+    flex-direction: column;
+}
+
+.items-start {
+    align-items: flex-start;
+}
+
+/* Opacity */
+.opacity-50 {
+    opacity: 0.5;
+}
+
+.opacity-60 {
+    opacity: 0.6;
+}
+
+/* Overflow */
+.overflow-x-auto {
+    overflow-x: auto;
+}
+
+.overflow-y-auto {
+    overflow-y: auto;
+}
+
+/* State variants */
+.disabled\:opacity-50:disabled {
+    opacity: 0.5;
+}
+
+.disabled\:cursor-not-allowed:disabled {
+    cursor: not-allowed;
+}
+
+.focus\:ring-2:focus {
+    box-shadow: 0 0 0 3px var(--ring);
+}
+
+.focus\:ring-blue-500:focus {
+    border-color: var(--ring-solid);
+}
+
+.focus\:border-transparent:focus {
+    border-color: var(--ring-solid);
+}
+
+/* Screen-reader-only text (the forms lean on this for their labels) */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+}
+/* ---------------------------------------------------------------------------
+ * Color utilities
+ *
+ * The class names are inherited from the original Tailwind-ish scale and are
+ * kept as *slots*, not literal hues - every value comes from a token ramp in
+ * :root, so the whole app re-themes from one block. The mapping is:
+ *
+ *   gray     -> --n-*  Sepia stone - neutrals, text, quiet fills
+ *   green    -> --g-*  Garden green - the brand hue: primary, fresh, available
+ *   blue     -> --w-*  Oak/walnut - the wooden accent (this app has no blue)
+ *   yellow   -> --h-*  Honey - caution, expiring soon
+ *   amber    -> --a-*  Toasted amber - advisory notices
+ *   orange   -> --t-*  Terracotta - restock, expires today
+ *   red      -> --r-*  Brick - expired, destructive
+ *   purple   -> --p-*  Plum - conflicts, AI share
+ *
+ * Two ramps per family: --x-N paints surfaces/borders, --x-t-N paints text.
+ * They are the same value in light mode and diverge in dark, where text has
+ * to lighten while button fills must stay dark enough to carry white labels.
+ * ------------------------------------------------------------------------ */
+
+/* Sepia stone - neutrals, text, quiet fills */
+.bg-gray-50 { background-color: var(--n-50); }
+.bg-gray-100 { background-color: var(--n-100); }
+.bg-gray-200 { background-color: var(--n-200); }
+.bg-gray-300 { background-color: var(--n-300); }
+.bg-gray-400 { background-color: var(--n-400); }
+.bg-gray-500 { background-color: var(--n-500); }
+.bg-gray-600 { background-color: var(--n-600); }
+.bg-gray-700 { background-color: var(--n-700); }
+.bg-gray-800 { background-color: var(--n-800); }
+.bg-gray-900 { background-color: var(--n-900); }
+.text-gray-50 { color: var(--n-t-50); }
+.text-gray-100 { color: var(--n-t-100); }
+.text-gray-200 { color: var(--n-t-200); }
+.text-gray-300 { color: var(--n-t-300); }
+.text-gray-400 { color: var(--n-t-400); }
+.text-gray-500 { color: var(--n-t-500); }
+.text-gray-600 { color: var(--n-t-600); }
+.text-gray-700 { color: var(--n-t-700); }
+.text-gray-800 { color: var(--n-t-800); }
+.text-gray-900 { color: var(--n-t-900); }
+.border-gray-50 { border-color: var(--n-50); }
+.border-gray-100 { border-color: var(--n-100); }
+.border-gray-200 { border-color: var(--n-200); }
+.border-gray-300 { border-color: var(--n-300); }
+.border-gray-400 { border-color: var(--n-400); }
+.border-gray-500 { border-color: var(--n-500); }
+.border-gray-600 { border-color: var(--n-600); }
+.border-gray-700 { border-color: var(--n-700); }
+.border-gray-800 { border-color: var(--n-800); }
+.border-gray-900 { border-color: var(--n-900); }
+
+/* Garden green - the brand hue: primary, fresh, available */
+.bg-green-50 { background-color: var(--g-50); }
+.bg-green-100 { background-color: var(--g-100); }
+.bg-green-200 { background-color: var(--g-200); }
+.bg-green-300 { background-color: var(--g-300); }
+.bg-green-400 { background-color: var(--g-400); }
+.bg-green-500 { background-color: var(--g-500); }
+.bg-green-600 { background-color: var(--g-600); }
+.bg-green-700 { background-color: var(--g-700); }
+.bg-green-800 { background-color: var(--g-800); }
+.bg-green-900 { background-color: var(--g-900); }
+.text-green-50 { color: var(--g-t-50); }
+.text-green-100 { color: var(--g-t-100); }
+.text-green-200 { color: var(--g-t-200); }
+.text-green-300 { color: var(--g-t-300); }
+.text-green-400 { color: var(--g-t-400); }
+.text-green-500 { color: var(--g-t-500); }
+.text-green-600 { color: var(--g-t-600); }
+.text-green-700 { color: var(--g-t-700); }
+.text-green-800 { color: var(--g-t-800); }
+.text-green-900 { color: var(--g-t-900); }
+.border-green-50 { border-color: var(--g-50); }
+.border-green-100 { border-color: var(--g-100); }
+.border-green-200 { border-color: var(--g-200); }
+.border-green-300 { border-color: var(--g-300); }
+.border-green-400 { border-color: var(--g-400); }
+.border-green-500 { border-color: var(--g-500); }
+.border-green-600 { border-color: var(--g-600); }
+.border-green-700 { border-color: var(--g-700); }
+.border-green-800 { border-color: var(--g-800); }
+.border-green-900 { border-color: var(--g-900); }
+
+/* Oak/walnut - the wooden accent (this app has no blue) */
+.bg-blue-50 { background-color: var(--w-50); }
+.bg-blue-100 { background-color: var(--w-100); }
+.bg-blue-200 { background-color: var(--w-200); }
+.bg-blue-300 { background-color: var(--w-300); }
+.bg-blue-400 { background-color: var(--w-400); }
+.bg-blue-500 { background-color: var(--w-500); }
+.bg-blue-600 { background-color: var(--w-600); }
+.bg-blue-700 { background-color: var(--w-700); }
+.bg-blue-800 { background-color: var(--w-800); }
+.bg-blue-900 { background-color: var(--w-900); }
+.text-blue-50 { color: var(--w-t-50); }
+.text-blue-100 { color: var(--w-t-100); }
+.text-blue-200 { color: var(--w-t-200); }
+.text-blue-300 { color: var(--w-t-300); }
+.text-blue-400 { color: var(--w-t-400); }
+.text-blue-500 { color: var(--w-t-500); }
+.text-blue-600 { color: var(--w-t-600); }
+.text-blue-700 { color: var(--w-t-700); }
+.text-blue-800 { color: var(--w-t-800); }
+.text-blue-900 { color: var(--w-t-900); }
+.border-blue-50 { border-color: var(--w-50); }
+.border-blue-100 { border-color: var(--w-100); }
+.border-blue-200 { border-color: var(--w-200); }
+.border-blue-300 { border-color: var(--w-300); }
+.border-blue-400 { border-color: var(--w-400); }
+.border-blue-500 { border-color: var(--w-500); }
+.border-blue-600 { border-color: var(--w-600); }
+.border-blue-700 { border-color: var(--w-700); }
+.border-blue-800 { border-color: var(--w-800); }
+.border-blue-900 { border-color: var(--w-900); }
+
+/* Honey - caution, expiring soon */
+.bg-yellow-50 { background-color: var(--h-50); }
+.bg-yellow-100 { background-color: var(--h-100); }
+.bg-yellow-200 { background-color: var(--h-200); }
+.bg-yellow-300 { background-color: var(--h-300); }
+.bg-yellow-400 { background-color: var(--h-400); }
+.bg-yellow-500 { background-color: var(--h-500); }
+.bg-yellow-600 { background-color: var(--h-600); }
+.bg-yellow-700 { background-color: var(--h-700); }
+.bg-yellow-800 { background-color: var(--h-800); }
+.bg-yellow-900 { background-color: var(--h-900); }
+.text-yellow-50 { color: var(--h-t-50); }
+.text-yellow-100 { color: var(--h-t-100); }
+.text-yellow-200 { color: var(--h-t-200); }
+.text-yellow-300 { color: var(--h-t-300); }
+.text-yellow-400 { color: var(--h-t-400); }
+.text-yellow-500 { color: var(--h-t-500); }
+.text-yellow-600 { color: var(--h-t-600); }
+.text-yellow-700 { color: var(--h-t-700); }
+.text-yellow-800 { color: var(--h-t-800); }
+.text-yellow-900 { color: var(--h-t-900); }
+.border-yellow-50 { border-color: var(--h-50); }
+.border-yellow-100 { border-color: var(--h-100); }
+.border-yellow-200 { border-color: var(--h-200); }
+.border-yellow-300 { border-color: var(--h-300); }
+.border-yellow-400 { border-color: var(--h-400); }
+.border-yellow-500 { border-color: var(--h-500); }
+.border-yellow-600 { border-color: var(--h-600); }
+.border-yellow-700 { border-color: var(--h-700); }
+.border-yellow-800 { border-color: var(--h-800); }
+.border-yellow-900 { border-color: var(--h-900); }
+
+/* Toasted amber - advisory notices */
+.bg-amber-50 { background-color: var(--a-50); }
+.bg-amber-100 { background-color: var(--a-100); }
+.bg-amber-200 { background-color: var(--a-200); }
+.bg-amber-300 { background-color: var(--a-300); }
+.bg-amber-400 { background-color: var(--a-400); }
+.bg-amber-500 { background-color: var(--a-500); }
+.bg-amber-600 { background-color: var(--a-600); }
+.bg-amber-700 { background-color: var(--a-700); }
+.bg-amber-800 { background-color: var(--a-800); }
+.bg-amber-900 { background-color: var(--a-900); }
+.text-amber-50 { color: var(--a-t-50); }
+.text-amber-100 { color: var(--a-t-100); }
+.text-amber-200 { color: var(--a-t-200); }
+.text-amber-300 { color: var(--a-t-300); }
+.text-amber-400 { color: var(--a-t-400); }
+.text-amber-500 { color: var(--a-t-500); }
+.text-amber-600 { color: var(--a-t-600); }
+.text-amber-700 { color: var(--a-t-700); }
+.text-amber-800 { color: var(--a-t-800); }
+.text-amber-900 { color: var(--a-t-900); }
+.border-amber-50 { border-color: var(--a-50); }
+.border-amber-100 { border-color: var(--a-100); }
+.border-amber-200 { border-color: var(--a-200); }
+.border-amber-300 { border-color: var(--a-300); }
+.border-amber-400 { border-color: var(--a-400); }
+.border-amber-500 { border-color: var(--a-500); }
+.border-amber-600 { border-color: var(--a-600); }
+.border-amber-700 { border-color: var(--a-700); }
+.border-amber-800 { border-color: var(--a-800); }
+.border-amber-900 { border-color: var(--a-900); }
+
+/* Terracotta - restock, expires today */
+.bg-orange-50 { background-color: var(--t-50); }
+.bg-orange-100 { background-color: var(--t-100); }
+.bg-orange-200 { background-color: var(--t-200); }
+.bg-orange-300 { background-color: var(--t-300); }
+.bg-orange-400 { background-color: var(--t-400); }
+.bg-orange-500 { background-color: var(--t-500); }
+.bg-orange-600 { background-color: var(--t-600); }
+.bg-orange-700 { background-color: var(--t-700); }
+.bg-orange-800 { background-color: var(--t-800); }
+.bg-orange-900 { background-color: var(--t-900); }
+.text-orange-50 { color: var(--t-t-50); }
+.text-orange-100 { color: var(--t-t-100); }
+.text-orange-200 { color: var(--t-t-200); }
+.text-orange-300 { color: var(--t-t-300); }
+.text-orange-400 { color: var(--t-t-400); }
+.text-orange-500 { color: var(--t-t-500); }
+.text-orange-600 { color: var(--t-t-600); }
+.text-orange-700 { color: var(--t-t-700); }
+.text-orange-800 { color: var(--t-t-800); }
+.text-orange-900 { color: var(--t-t-900); }
+.border-orange-50 { border-color: var(--t-50); }
+.border-orange-100 { border-color: var(--t-100); }
+.border-orange-200 { border-color: var(--t-200); }
+.border-orange-300 { border-color: var(--t-300); }
+.border-orange-400 { border-color: var(--t-400); }
+.border-orange-500 { border-color: var(--t-500); }
+.border-orange-600 { border-color: var(--t-600); }
+.border-orange-700 { border-color: var(--t-700); }
+.border-orange-800 { border-color: var(--t-800); }
+.border-orange-900 { border-color: var(--t-900); }
+
+/* Brick - expired, destructive */
+.bg-red-50 { background-color: var(--r-50); }
+.bg-red-100 { background-color: var(--r-100); }
+.bg-red-200 { background-color: var(--r-200); }
+.bg-red-300 { background-color: var(--r-300); }
+.bg-red-400 { background-color: var(--r-400); }
+.bg-red-500 { background-color: var(--r-500); }
+.bg-red-600 { background-color: var(--r-600); }
+.bg-red-700 { background-color: var(--r-700); }
+.bg-red-800 { background-color: var(--r-800); }
+.bg-red-900 { background-color: var(--r-900); }
+.text-red-50 { color: var(--r-t-50); }
+.text-red-100 { color: var(--r-t-100); }
+.text-red-200 { color: var(--r-t-200); }
+.text-red-300 { color: var(--r-t-300); }
+.text-red-400 { color: var(--r-t-400); }
+.text-red-500 { color: var(--r-t-500); }
+.text-red-600 { color: var(--r-t-600); }
+.text-red-700 { color: var(--r-t-700); }
+.text-red-800 { color: var(--r-t-800); }
+.text-red-900 { color: var(--r-t-900); }
+.border-red-50 { border-color: var(--r-50); }
+.border-red-100 { border-color: var(--r-100); }
+.border-red-200 { border-color: var(--r-200); }
+.border-red-300 { border-color: var(--r-300); }
+.border-red-400 { border-color: var(--r-400); }
+.border-red-500 { border-color: var(--r-500); }
+.border-red-600 { border-color: var(--r-600); }
+.border-red-700 { border-color: var(--r-700); }
+.border-red-800 { border-color: var(--r-800); }
+.border-red-900 { border-color: var(--r-900); }
+
+/* Plum - conflicts, AI share */
+.bg-purple-50 { background-color: var(--p-50); }
+.bg-purple-100 { background-color: var(--p-100); }
+.bg-purple-200 { background-color: var(--p-200); }
+.bg-purple-300 { background-color: var(--p-300); }
+.bg-purple-400 { background-color: var(--p-400); }
+.bg-purple-500 { background-color: var(--p-500); }
+.bg-purple-600 { background-color: var(--p-600); }
+.bg-purple-700 { background-color: var(--p-700); }
+.bg-purple-800 { background-color: var(--p-800); }
+.bg-purple-900 { background-color: var(--p-900); }
+.text-purple-50 { color: var(--p-t-50); }
+.text-purple-100 { color: var(--p-t-100); }
+.text-purple-200 { color: var(--p-t-200); }
+.text-purple-300 { color: var(--p-t-300); }
+.text-purple-400 { color: var(--p-t-400); }
+.text-purple-500 { color: var(--p-t-500); }
+.text-purple-600 { color: var(--p-t-600); }
+.text-purple-700 { color: var(--p-t-700); }
+.text-purple-800 { color: var(--p-t-800); }
+.text-purple-900 { color: var(--p-t-900); }
+.border-purple-50 { border-color: var(--p-50); }
+.border-purple-100 { border-color: var(--p-100); }
+.border-purple-200 { border-color: var(--p-200); }
+.border-purple-300 { border-color: var(--p-300); }
+.border-purple-400 { border-color: var(--p-400); }
+.border-purple-500 { border-color: var(--p-500); }
+.border-purple-600 { border-color: var(--p-600); }
+.border-purple-700 { border-color: var(--p-700); }
+.border-purple-800 { border-color: var(--p-800); }
+.border-purple-900 { border-color: var(--p-900); }
+
+/* Stone reads as an alias of the neutral wood ramp. */
+.bg-stone-50 { background-color: var(--n-50); }
+.bg-stone-100 { background-color: var(--n-100); }
+.bg-stone-200 { background-color: var(--n-200); }
+.bg-stone-300 { background-color: var(--n-300); }
+.text-stone-600 { color: var(--n-t-600); }
+.text-stone-700 { color: var(--n-t-700); }
+.text-stone-800 { color: var(--n-t-800); }
+.text-stone-900 { color: var(--n-t-900); }
+.border-stone-200 { border-color: var(--n-200); }
+.border-stone-300 { border-color: var(--n-300); }
+.border-stone-400 { border-color: var(--n-400); }
+
+/* Hover variants */
+.hover\:bg-gray-50:hover { background-color: var(--n-50); }
+.hover\:bg-gray-100:hover { background-color: var(--n-100); }
+.hover\:bg-gray-200:hover { background-color: var(--n-200); }
+.hover\:bg-gray-300:hover { background-color: var(--n-300); }
+.hover\:bg-gray-400:hover { background-color: var(--n-400); }
+.hover\:bg-blue-50:hover { background-color: var(--w-50); }
+.hover\:bg-blue-100:hover { background-color: var(--w-100); }
+.hover\:bg-blue-600:hover { background-color: var(--w-600); }
+.hover\:bg-blue-700:hover { background-color: var(--w-700); }
+.hover\:bg-green-50:hover { background-color: var(--g-50); }
+.hover\:bg-green-100:hover { background-color: var(--g-100); }
+.hover\:bg-green-600:hover { background-color: var(--g-600); }
+.hover\:bg-green-700:hover { background-color: var(--g-700); }
+.hover\:bg-yellow-100:hover { background-color: var(--h-100); }
+.hover\:bg-yellow-700:hover { background-color: var(--h-700); }
+.hover\:bg-amber-100:hover { background-color: var(--a-100); }
+.hover\:bg-orange-100:hover { background-color: var(--t-100); }
+.hover\:bg-orange-600:hover { background-color: var(--t-600); }
+.hover\:bg-orange-700:hover { background-color: var(--t-700); }
+.hover\:bg-red-50:hover { background-color: var(--r-50); }
+.hover\:bg-red-100:hover { background-color: var(--r-100); }
+.hover\:bg-red-600:hover { background-color: var(--r-600); }
+.hover\:bg-red-700:hover { background-color: var(--r-700); }
+.hover\:bg-purple-50:hover { background-color: var(--p-50); }
+.hover\:bg-purple-100:hover { background-color: var(--p-100); }
+.hover\:bg-purple-600:hover { background-color: var(--p-600); }
+.hover\:bg-purple-700:hover { background-color: var(--p-700); }
+.hover\:text-gray-600:hover { color: var(--n-t-600); }
+.hover\:text-gray-800:hover { color: var(--n-t-800); }
+.hover\:text-blue-700:hover { color: var(--w-t-700); }
+.hover\:text-green-700:hover { color: var(--g-t-700); }
+.hover\:text-red-700:hover { color: var(--r-t-700); }
+.hover\:border-gray-300:hover { border-color: var(--n-300); }
+.hover\:border-blue-500:hover { border-color: var(--w-500); }
+.hover\:border-green-400:hover { border-color: var(--g-400); }
+.hover\:border-green-500:hover { border-color: var(--g-500); }
+.hover\:border-orange-400:hover { border-color: var(--t-400); }
+.hover\:border-purple-500:hover { border-color: var(--p-500); }
+.hover\:border-red-400:hover { border-color: var(--r-400); }
+/* ---------------------------------------------------------------------------
+ * Components
+ * ------------------------------------------------------------------------ */
+
+/* Navigation - the tab rail is a cutting board, the active tab a garden chip */
+#navigation {
+    padding: 0.375rem;
+    border-radius: 1rem;
+    border: 1px solid var(--board-line);
+    background-color: var(--board-bottom);
+    background-image:
+        repeating-linear-gradient(90deg, transparent 0 26px, var(--board-grain) 29px, transparent 32px 58px),
+        repeating-linear-gradient(90deg, transparent 0 61px, var(--board-grain) 64px, transparent 67px 97px),
+        linear-gradient(180deg, var(--board-top), var(--board-bottom));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), var(--shadow-raised);
+    scrollbar-width: none;
+}
+
+#navigation::-webkit-scrollbar {
+    display: none;
+}
+
+.nav-btn {
+    /*
+     * Equal shares of the board rather than five left-aligned chips with dead
+     * wood to the right. flex-basis 0 makes the split even regardless of label
+     * length; min-width:auto still stops a tab shrinking below its own text, so
+     * on a narrow phone they overflow and the rail scrolls as it always did.
+     */
+    flex: 1 1 0;
+    background-color: transparent;
+    color: var(--w-t-700);
+    cursor: pointer;
+    border: 1px solid transparent;
+    outline: none;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
+.nav-btn:hover {
+    background-color: rgba(255, 253, 248, 0.55);
+    color: var(--n-t-800);
+}
+
+.nav-btn.active,
+.nav-btn.active:hover {
+    background-image: linear-gradient(180deg, var(--g-500), var(--g-700));
+    border-color: rgba(0, 0, 0, 0.12);
+    color: #ffffff;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.28) inset, 0 4px 10px -4px rgba(39, 57, 29, 0.7);
+}
+
+/* Views */
+.view {
+    display: none;
+}
+
+.view.active {
+    display: block;
+    animation: view-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes view-in {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+/* Overview hero - a planted bed, with a faint grain wash over the gradient */
+.hero-card {
+    position: relative;
+    overflow: hidden;
+    background-image: linear-gradient(135deg, var(--hero-from) 0%, var(--hero-via) 55%, var(--hero-to) 100%);
+    border: 1px solid rgba(0, 0, 0, 0.14);
+    box-shadow: var(--shadow-lg);
+}
+
+.hero-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+        repeating-linear-gradient(100deg, rgba(255, 255, 255, 0.055) 0 2px, transparent 2px 11px),
+        radial-gradient(120% 140% at 88% -10%, rgba(255, 255, 255, 0.18), transparent 60%);
+}
+
+.hero-card > * {
+    position: relative;
+    z-index: 1;
+}
+
+.hero-sub {
+    color: var(--hero-sub);
+    margin-top: 0.25rem;
+}
+
+/*
+ * The pantry emblem. Sized in rem rather than the old w-16/h-16 so it can grow
+ * with the hero on wide screens, and kept a little translucent so it reads as
+ * a watermark behind the figure rather than competing with it.
+ */
+.hero-emblem {
+    width: 4.75rem;
+    height: 4.75rem;
+    flex-shrink: 0;
+    opacity: 0.82;
+}
+
+.hero-emblem svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+/* Geometry properties animate as CSS in current browsers; where they do not,
+   the level simply snaps to its new value. */
+.hero-emblem .emblem-fill {
+    transition: y 700ms cubic-bezier(0.22, 1, 0.36, 1),
+                height 700ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (min-width: 640px) {
+    .hero-emblem {
+        width: 6rem;
+        height: 6rem;
+    }
+}
+
+/*
+ * "Lite" rides along with the wordmark rather than competing with it - this
+ * build is deliberately the single-device one, so the badge is a statement of
+ * scope, not a downgrade notice. See docs/prepwise-full-architecture.md.
+ */
+.wordmark-lite {
+    display: inline-block;
+    vertical-align: 0.42em;
+    margin-left: 0.2em;
+    /* .text-4xl sets line-height as a length, which the badge would inherit and
+       stretch itself to - hence the explicit reset. */
+    line-height: 1;
+    padding: 0.32em 0.62em 0.28em;
+    border: 1px solid var(--g-300);
+    border-radius: 9999px;
+    background-color: var(--g-50);
+    color: var(--g-t-700);
+    font-family: var(--font-body);
+    font-size: 0.34em;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+/* Cards */
+.card {
+    background-color: var(--surface);
+    border-radius: 0.875rem;
+    padding: 1.25rem;
+    box-shadow: var(--shadow-raised);
+    border: 1px solid var(--border-soft);
+}
+
+.card-clickable {
+    cursor: pointer;
+    transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.card-clickable:hover {
+    transform: translateY(-2px);
+    border-color: var(--g-300);
+    box-shadow: var(--shadow-md);
+}
+
+/* Forms */
+input, select, textarea {
+    font-family: inherit;
+    color: var(--n-t-800);
+    background-color: var(--field);
+    border: 1px solid var(--border-strong);
+    border-radius: 0.625rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out, background-color 0.15s ease-in-out;
+}
+
+input::placeholder, textarea::placeholder {
+    color: var(--n-t-400);
+}
+
+input, select, textarea {
+    box-shadow: var(--shadow-sm);
+}
+
+/* The search box and filter rest directly on the board. */
+#recipe-search, #recipe-filter {
+    box-shadow: var(--shadow-raised);
+}
+
+input:hover, select:hover, textarea:hover {
+    border-color: var(--w-300);
+}
+
+input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--ring-solid);
+    box-shadow: 0 0 0 3px var(--ring), var(--shadow-sm);
+    background-color: var(--surface);
+}
+
+input[type="checkbox"], input[type="radio"] {
+    accent-color: var(--g-600);
+    width: 1rem;
+    height: 1rem;
+    padding: 0;
+    border-radius: 0.25rem;
+}
+
+input[type="date"] {
+    color-scheme: light;
+}
+
+:root[data-theme="dark"] input[type="date"] {
+    color-scheme: dark;
+}
+
+/* Buttons */
+/*
+ * Buttons default to transparent rather than the UA's buttonface grey: several
+ * of them ("+ Add Ingredient", the row X's, the icon buttons) carry no bg class
+ * and would otherwise sit on a cold grey chip in the middle of a cream card.
+ */
+button {
+    cursor: pointer;
+    background-color: transparent;
+    color: inherit;
+    border: none;
+    outline: none;
+    border-radius: 0.625rem;
+    font-family: inherit;
+    /*
+     * Without this, buttons keep the UA stylesheet's fixed 13.33px: smaller than
+     * the body text next to them, and immune to the text-scale setting because
+     * it is not a relative unit. Buttons carrying a .text-* class still win.
+     */
+    font-size: inherit;
+    font-weight: 600;
+    transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out, box-shadow 0.15s ease-in-out, transform 0.1s ease-in-out, border-color 0.15s ease-in-out;
+}
+
+/* Buttons sit a step lower than the panels they live on, so a card and the
+   buttons inside it do not compete. */
+button:not(.nav-btn) {
+    box-shadow: var(--shadow-md);
+}
+
+button:not(.nav-btn):not(:disabled):hover {
+    box-shadow: var(--shadow-raised);
+}
+
+/* Pressed means flat on the board. */
+button:not(.nav-btn):not(:disabled):active {
+    transform: translateY(1px);
+    box-shadow: var(--shadow-sm);
+}
+
+button:disabled {
+    box-shadow: none;
+}
+
+/*
+ * Quiet buttons (the +/-5 steppers, Cancel) sit on cream at nearly the same
+ * value as the card behind them - a hairline is what makes them read as keys.
+ */
+button.bg-gray-100,
+button.bg-gray-200,
+button.bg-gray-300 {
+    border: 1px solid var(--border-strong);
+}
+
+button:focus-visible,
+a:focus-visible,
+[tabindex]:focus-visible {
+    outline: 2px solid var(--ring-solid);
+    outline-offset: 2px;
+}
+
+/*
+ * A recipe card's title is a real button - the keyboard path to the recipe
+ * modal (the card's own click listener is mouse-only). It has to read as the
+ * heading it sits in, not as a control: no chip shadow, no centring, and the
+ * heading's own weight, size and ink.
+ */
+button.recipe-title-btn {
+    box-shadow: none;
+    padding: 0;
+    text-align: left;
+    font-weight: inherit;
+    font-size: inherit;
+    color: inherit;
+}
+
+button.recipe-title-btn:not(:disabled):hover {
+    box-shadow: none;
+    text-decoration: underline;
+}
+
+button.recipe-title-btn:not(:disabled):active {
+    transform: none;
+    box-shadow: none;
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Enhanced button styling */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 0.625rem;
+    font-weight: 600;
+    transition: all 0.15s ease-in-out;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.btn-primary {
+    background-color: var(--g-600);
+    color: #ffffff;
+}
+
+.btn-primary:hover {
+    background-color: var(--g-700);
+}
+
+.btn-secondary {
+    background-color: var(--n-200);
+    color: var(--n-t-700);
+}
+
+.btn-secondary:hover {
+    background-color: var(--n-300);
+}
+
+.btn-success {
+    background-color: var(--g-600);
+    color: #ffffff;
+}
+
+.btn-success:hover {
+    background-color: var(--g-700);
+}
+
+.btn-danger {
+    background-color: var(--r-600);
+    color: #ffffff;
+}
+
+.btn-danger:hover {
+    background-color: var(--r-700);
+}
+
+.btn-warning {
+    background-color: var(--t-600);
+    color: #ffffff;
+}
+
+.btn-warning:hover {
+    background-color: var(--t-700);
+}
+
+.btn-sm {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+}
+
+.btn-lg {
+    padding: 0.75rem 1.5rem;
+    font-size: 1.125rem;
+}
+
+/* Progress bars */
+.progress-bar {
+    width: 100%;
+    height: 0.75rem;
+    background-color: var(--n-200);
+    border-radius: 9999px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    border-radius: 9999px;
+    transition: width 0.3s ease-in-out;
+}
+
+/*
+ * Inventory bars are built inline in app.js as `.bg-gray-200` tracks holding a
+ * `.bg-*-500` fill; give both the same inset lip so they read as one part.
+ */
+.bg-gray-200.rounded-full {
+    box-shadow: inset 0 1px 2px rgba(72, 52, 32, 0.14);
+}
+
+/*
+ * Icons
+ *
+ * The inline SVGs in app.js and index.html carry width/height *attributes* in
+ * px, which are absolute and therefore ignore the text scale — at the largest
+ * step the labels grew 40% while the icons beside them stayed put. Restating
+ * each size in rem keeps the current proportions at the standard step and lets
+ * them grow with everything else. All of them are square.
+ */
+svg[width="12"] { width: 0.75rem; height: 0.75rem; }
+svg[width="16"] { width: 1rem; height: 1rem; }
+svg[width="20"] { width: 1.25rem; height: 1.25rem; }
+svg[width="24"] { width: 1.5rem; height: 1.5rem; }
+svg[width="48"] { width: 3rem; height: 3rem; }
+
+.icon {
+    width: 1rem;
+    height: 1rem;
+    display: inline-block;
+}
+
+.icon-lg {
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+.icon-xl {
+    width: 4rem;
+    height: 4rem;
+}
+
+/* Loading indicator */
+.loading {
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid var(--n-200);
+    border-radius: 50%;
+    border-top-color: var(--g-600);
+    animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/*
+ * Allergy severity picker. Colour-coded so the list can be scanned for the
+ * dangerous entries without reading every row - it stays a real <select> so
+ * keyboard and screen-reader users get the native control.
+ */
+.severity-select {
+    flex-shrink: 0;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 9999px;
+    border: 1px solid transparent;
+    cursor: pointer;
+}
+
+.severity-mild {
+    background-color: var(--g-100);
+    color: var(--g-t-800);
+    border-color: var(--g-200);
+}
+
+.severity-moderate {
+    background-color: var(--h-100);
+    color: var(--h-t-800);
+    border-color: var(--h-200);
+}
+
+.severity-severe {
+    background-color: var(--t-100);
+    color: var(--t-t-800);
+    border-color: var(--t-200);
+}
+
+.severity-critical {
+    background-color: var(--r-100);
+    color: var(--r-t-800);
+    border-color: var(--r-300);
+    box-shadow: inset 0 0 0 1px var(--r-200);
+}
+
+/* ---------------------------------------------------------------------------
+ * Timers
+ *
+ * Sized in rem throughout, so a timer read from across the kitchen grows with
+ * the text-scale setting - which is exactly the situation timers are for.
+ * ------------------------------------------------------------------------ */
+
+.timer-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.35rem;
+    height: 1.35rem;
+    margin-left: 0.45rem;
+    padding: 0 0.35rem;
+    border-radius: 9999px;
+    background-color: var(--g-600);
+    color: #ffffff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1;
+    vertical-align: 0.05em;
+}
+
+.nav-btn.active .timer-badge {
+    background-color: rgba(255, 255, 255, 0.9);
+    color: var(--g-t-800);
+}
+
+/* Something has actually gone off - this needs to read from across the room. */
+.timer-badge.is-ringing {
+    background-color: var(--r-600);
+    color: #ffffff;
+    animation: timer-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes timer-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.16); }
+}
+
+.timer-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+    gap: 1rem;
+}
+
+.timer-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1.5rem 1.25rem 1.25rem;
+    background-color: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: 1.125rem;
+    box-shadow: var(--shadow-raised);
+    text-align: center;
+    transition: border-color 200ms ease, box-shadow 200ms ease;
+}
+
+.timer-card.is-ending {
+    border-color: var(--h-300);
+}
+
+.timer-card.is-finished {
+    border-color: var(--r-400);
+    background-color: var(--r-50);
+    animation: timer-flash 1.6s ease-in-out infinite;
+}
+
+@keyframes timer-flash {
+    0%, 100% { box-shadow: var(--shadow-raised); }
+    50% { box-shadow: var(--shadow-raised), 0 0 0 4px var(--r-200); }
+}
+
+.timer-dial {
+    position: relative;
+    width: 9rem;
+    height: 9rem;
+}
+
+.timer-dial svg {
+    width: 100%;
+    height: 100%;
+    /* Start the sweep at noon and run clockwise. */
+    transform: rotate(-90deg);
+}
+
+.timer-track {
+    fill: none;
+    stroke: var(--n-200);
+    stroke-width: 8;
+}
+
+.timer-progress {
+    fill: none;
+    stroke: var(--g-500);
+    stroke-width: 8;
+    stroke-linecap: round;
+    /* Matches the tick interval, so the sweep is continuous rather than steppy. */
+    transition: stroke-dashoffset 250ms linear, stroke 300ms ease;
+}
+
+.timer-card.is-running .timer-progress {
+    stroke: var(--g-500);
+}
+
+.timer-card.is-paused .timer-progress {
+    stroke: var(--n-400);
+}
+
+.timer-card.is-ending .timer-progress {
+    stroke: var(--h-500);
+}
+
+.timer-card.is-finished .timer-progress {
+    stroke: var(--r-500);
+}
+
+.timer-readout {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.15rem;
+}
+
+.timer-remaining {
+    font-size: 1.9rem;
+    max-width: 100%;
+    font-weight: 700;
+    color: var(--n-t-800);
+    /* Stops the countdown jittering as digits change width. */
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    line-height: 1;
+}
+
+/* "1:02:00" and "99:59:59" need the room that "5:00" does not. */
+.timer-remaining[data-length="long"] {
+    font-size: 1.4rem;
+}
+
+.timer-remaining[data-length="longest"] {
+    font-size: 1.12rem;
+}
+
+.timer-card.is-finished .timer-remaining {
+    color: var(--r-t-700);
+}
+
+.timer-status {
+    /* Kept on one line inside the ring, whatever the duration. */
+    max-width: 80%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--n-t-500);
+}
+
+.timer-label {
+    font-weight: 600;
+    color: var(--n-t-800);
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+    text-align: center;
+}
+
+/* Only timers you started yourself are renameable; the pencil says so. */
+.timer-label-edit {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.5rem;
+    border: 1px solid transparent;
+    background-color: transparent;
+    box-shadow: none;
+    font-size: inherit;
+}
+
+.timer-label-edit:hover {
+    border-color: var(--border-strong);
+    background-color: var(--n-50);
+    box-shadow: none;
+}
+
+.timer-label-pencil {
+    width: 0.8rem;
+    height: 0.8rem;
+    flex-shrink: 0;
+    opacity: 0.55;
+}
+
+.timer-label-input {
+    width: 100%;
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.timer-controls {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.timer-preset {
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border-strong);
+    border-radius: 9999px;
+    background-color: var(--field);
+    color: var(--n-t-700);
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.timer-preset:hover {
+    border-color: var(--g-400);
+    background-color: var(--g-50);
+    color: var(--g-t-700);
+}
+
+.timer-custom {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+
+.timer-custom input[type="number"] {
+    width: 5.5rem;
+}
+
+.timer-custom-label {
+    flex: 1 1 12rem;
+}
+
+.timer-custom-label input {
+    width: 100%;
+}
+
+/* The timer controls that live beside a step inside a recipe */
+.step-timer-group {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    margin-top: 0.5rem;
+}
+
+.step-timer-action {
+    padding: 0.3rem 0.6rem;
+    border: 1px solid var(--border-strong);
+    border-radius: 9999px;
+    background-color: var(--surface);
+    color: var(--n-t-600);
+    font-size: 0.75rem;
+    font-weight: 600;
+    box-shadow: none;
+}
+
+.step-timer-action:hover {
+    border-color: var(--g-400);
+    background-color: var(--g-50);
+    color: var(--g-t-700);
+}
+
+/* Restarting a step that has just rung is the likely next move, so it leads. */
+.step-timer-restart {
+    border-color: var(--g-400);
+    background-color: var(--g-50);
+    color: var(--g-t-700);
+}
+
+.step-timer {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.75rem;
+    border: 1px solid var(--w-300);
+    border-radius: 9999px;
+    background-color: var(--w-50);
+    color: var(--w-t-700);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.step-timer-icon {
+    width: 0.95rem;
+    height: 0.95rem;
+    flex-shrink: 0;
+}
+
+button.step-timer:hover {
+    border-color: var(--g-400);
+    background-color: var(--g-50);
+    color: var(--g-t-700);
+}
+
+/* Counting, but held. */
+.step-timer.is-held {
+    border-color: var(--n-300);
+    background-color: var(--n-50);
+    color: var(--n-t-600);
+}
+
+.step-timer.is-active {
+    border-color: var(--g-400);
+    background-color: var(--g-50);
+    color: var(--g-t-700);
+}
+
+.step-timer.is-finished {
+    border-color: var(--r-400);
+    background-color: var(--r-50);
+    color: var(--r-t-700);
+}
+
+/* The per-step timer fields in the recipe editor */
+.step-timer-fields {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--n-t-600);
+}
+
+/* Flashes when clampNumberField() has just rewritten what was typed. */
+input.is-corrected {
+    border-color: var(--r-400);
+    box-shadow: 0 0 0 3px var(--r-100);
+    animation: field-correct 1.4s ease-out;
+}
+
+@keyframes field-correct {
+    0%, 60% { background-color: var(--r-50); }
+    100% { background-color: var(--field); }
+}
+
+.step-timer-inputs {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.step-timer-hours,
+.step-timer-minutes,
+.step-timer-seconds {
+    width: 4.5rem;
+}
+
+.step-timer-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+/* ---------------------------------------------------------------------------
+ * Inventory: expired rows, search, and the A-Z rail
+ * ------------------------------------------------------------------------ */
+
+/*
+ * An expired row used to be dimmed to 60% opacity, which faded the name and the
+ * quantity along with everything else - the hardest row to read was the one you
+ * most needed to act on. It is tinted and outlined instead: still obviously set
+ * apart, but at full contrast.
+ */
+.item-expired {
+    background-color: var(--r-50);
+    border-color: var(--r-300);
+}
+
+.inventory-controls {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.inventory-controls > .relative {
+    min-width: 12rem;
+}
+
+/* The letter rail, in the manner of an iOS list index. */
+/*
+ * A grid rather than a wrapping flex row: with 27 keys at a fingertip's size the
+ * rail always wraps somewhere, and centring each line left the tail row floating
+ * in the middle of the card. Columns keep every letter under the one above it.
+ */
+.inventory-index {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(2.75rem, 1fr));
+    gap: 0.2rem;
+    padding: 0.5rem 0.65rem;
+    border: 1px solid var(--border-soft);
+    /* A card radius, not a pill: at 44px targets the rail wraps to two rows on
+       a phone, and a pill's curve would bite into the corner letters. */
+    border-radius: 1.125rem;
+    background-color: var(--surface);
+    box-shadow: var(--shadow-sm);
+}
+
+/*
+ * Sized for a fingertip rather than a cursor: 2.75rem is the 44px Apple has
+ * used as the minimum comfortable touch target since the first iPhone, and
+ * these get jabbed at with wet hands.
+ */
+.index-letter {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    padding: 0.35rem 0;
+    border-radius: 0.6rem;
+    background-color: transparent;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--g-t-700);
+    line-height: 1.2;
+}
+
+.index-letter:hover:not(:disabled) {
+    background-color: var(--g-100);
+}
+
+/*
+ * Letters with nothing under them stay in place so the rail never reflows.
+ * They also lose the shared button shadow, so the live letters read as raised
+ * keys and the dead ones as printing on the card - the shape of the pantry is
+ * legible before you touch anything.
+ */
+.index-letter:disabled {
+    color: var(--n-t-400);
+    opacity: 0.55;
+}
+
+/* A brief flash so the eye lands on what the letter jumped to. */
+.is-jumped {
+    animation: jump-flash 1.2s ease-out;
+}
+
+@keyframes jump-flash {
+    0%, 30% { box-shadow: var(--shadow-raised), 0 0 0 3px var(--g-300); }
+    100% { box-shadow: var(--shadow-raised); }
+}
+
+/* ---------------------------------------------------------------------------
+ * Overview: a card whose whole point is one button
+ * ------------------------------------------------------------------------ */
+
+/*
+ * Text beside the action on a laptop, stacked above it on a phone. Left to
+ * flex-wrap alone the text column just gets narrower and narrower next to the
+ * button, until the heading breaks across three lines with the button sitting
+ * in the white space it left behind.
+ */
+.overview-cta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+@media (min-width: 640px) {
+    .overview-cta {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .overview-cta > :first-child {
+        flex: 1 1 auto;
+    }
+
+    .overview-cta > button {
+        flex: 0 0 auto;
+    }
+}
+
+/* ---------------------------------------------------------------------------
+ * Overview: the expired tile asks for attention
+ * ------------------------------------------------------------------------ */
+#expired-tile.is-alerting {
+    border-color: var(--r-400);
+    animation: expired-breathe 2.6s ease-in-out infinite;
+}
+
+/* Slow enough to read as breathing rather than blinking. */
+@keyframes expired-breathe {
+    0%, 100% { box-shadow: var(--shadow-raised), 0 0 0 0 rgba(187, 75, 54, 0.30); }
+    50% { box-shadow: var(--shadow-raised), 0 0 1.5rem 0.25rem rgba(187, 75, 54, 0.42); }
+}
+
+/* ---------------------------------------------------------------------------
+ * Import preview: what is actually in a proposal
+ *
+ * A backup file is the user's own, so a count is enough. An assistant's
+ * proposal is not — they have never read it, and confirming a count is
+ * confirming something unseen. These rows say what would land, and mark what
+ * would be skipped. Bounded height because an agent may propose a hundred
+ * items and the confirm buttons must stay reachable.
+ * ------------------------------------------------------------------------ */
+.import-details {
+    max-height: 13rem;
+    overflow-y: auto;
+    border: 1px solid var(--border-soft);
+    border-radius: 0.625rem;
+    background-color: var(--n-50);
+}
+
+.import-detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    color: var(--n-t-800);
+}
+
+.import-detail-row + .import-detail-row {
+    border-top: 1px solid var(--border-soft);
+}
+
+/* min-width:0 lets a long ingredient list wrap instead of forcing the row
+   wider than the panel and pushing the note off the edge. */
+.import-detail-main {
+    min-width: 0;
+}
+
+.import-detail-name {
+    font-weight: 600;
+}
+
+/* The ingredients themselves, under the recipe's name. Quieter than the name,
+   but readable - the whole point is that someone actually reads it. */
+.import-detail-sub {
+    display: block;
+    margin-top: 0.125rem;
+    font-size: 0.8125rem;
+    line-height: 1.4;
+    color: var(--n-t-600);
+}
+
+/* A specific, checkable doubt about what the assistant wrote. */
+.import-detail-flag {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--a-t-700);
+}
+
+/* Quantities and counts: present, but not competing with the name. */
+.import-detail-note {
+    color: var(--n-t-600);
+    text-align: right;
+    white-space: nowrap;
+}
+
+/* Already held, so the merge will pass over it. Said plainly rather than
+   greyed out - "you will not get this" is information, not decoration. */
+.import-detail-skip {
+    color: var(--a-t-700);
+    font-style: italic;
+}
+
+/* A copy that gives no feedback reads as a copy that did not happen. The
+   button says so itself for two seconds, where the eye already is. */
+button.is-confirmed,
+button.is-confirmed:hover {
+    background-color: var(--g-700);
+    color: #ffffff;
+}
+
+/* The recipe form is moved into the grid when editing, so it must span it. */
+.form-in-grid {
+    grid-column: 1 / -1;
+}
+
+/* ---------------------------------------------------------------------------
+ * Cooking a recipe
+ * ------------------------------------------------------------------------ */
+.cook-ingredient {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border-radius: 0.625rem;
+    cursor: pointer;
+    transition: opacity 150ms ease;
+}
+
+.cook-ingredient-name {
+    flex: 1;
+    color: var(--n-t-800);
+}
+
+.cook-ingredient-amount {
+    font-weight: 600;
+    color: var(--n-t-600);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Used: struck through and stood down, but still legible. */
+.cook-ingredient.is-used .cook-ingredient-name,
+.cook-ingredient.is-used .cook-ingredient-amount {
+    text-decoration: line-through;
+    color: var(--n-t-500);
+}
+
+.complete-row {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.25rem 0.75rem;
+    align-items: baseline;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--border-soft);
+    border-radius: 0.625rem;
+    background-color: var(--surface);
+    cursor: pointer;
+}
+
+/*
+ * Rows that cannot be deducted safely - an item the pantry does not hold, or a
+ * unit it does not use - are flagged rather than quietly applied.
+ */
+.complete-row.is-blocked {
+    border-color: var(--h-300);
+    background-color: var(--h-50);
+}
+
+.complete-name {
+    font-weight: 600;
+    color: var(--n-t-800);
+}
+
+.complete-note {
+    grid-column: 2;
+    font-size: 0.8125rem;
+    color: var(--n-t-600);
+    font-variant-numeric: tabular-nums;
+}
+
+.complete-row.is-blocked .complete-note {
+    color: var(--h-t-800);
+}
+
+/* Status badges */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.badge-success {
+    background-color: var(--g-100);
+    color: var(--g-t-800);
+}
+
+.badge-warning {
+    background-color: var(--t-100);
+    color: var(--t-t-800);
+}
+
+.badge-danger {
+    background-color: var(--r-100);
+    color: var(--r-t-800);
+}
+
+.badge-info {
+    background-color: var(--w-100);
+    color: var(--w-t-800);
+}
+
+.badge-purple {
+    background-color: var(--p-100);
+    color: var(--p-t-800);
+}
+
+/* Ingredient form rows */
+.ingredient-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 0.5rem;
+}
+
+.ingredient-name {
+    flex: 1 1 11rem;
+    min-width: 0;
+}
+
+.ingredient-amount {
+    width: 6.5rem;
+}
+
+.ingredient-unit {
+    width: 6rem;
+    flex: none;
+}
+
+/* "I have this" - ticking it stocks the pantry when the recipe is saved. */
+.ingredient-have {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.7rem;
+    border: 1px solid var(--border-strong);
+    border-radius: 9999px;
+    background-color: var(--field);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--n-t-600);
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.ingredient-have-text {
+    line-height: 1;
+}
+
+.ingredient-have:has(input:checked) {
+    border-color: var(--g-400);
+    background-color: var(--g-50);
+    color: var(--g-t-700);
+}
+
+/* Already stocked: shown for information, not offered as a choice. */
+.ingredient-row.is-stocked .ingredient-have {
+    cursor: default;
+    opacity: 0.85;
+}
+
+.ingredient-have input:disabled {
+    cursor: inherit;
+}
+
+/* A unit sitting beside a field, so the expected measure is never a guess. */
+.field-with-unit {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.field-unit {
+    font-size: 0.8125rem;
+    color: var(--n-t-500);
+    white-space: nowrap;
+}
+
+/* Step instructions */
+.step-instruction {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+}
+
+.step-instruction .step-controls {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-start;
+    margin-bottom: 0.5rem;
+}
+
+.step-number {
+    flex-shrink: 0;
+    width: 2rem;
+    height: 2rem;
+    background-color: var(--g-100);
+    color: var(--g-t-800);
+    border: 1px solid var(--g-200);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+/* Expiration suggestion box inside the inventory form */
+.suggestion-box {
+    border: 1px dashed var(--w-300);
+}
+
+.expiration-section {
+    border-top: 1px solid var(--border-soft);
+}
+
+/* Modals - warm scrim, panel lifted off the page */
+.fixed.inset-0.z-50 {
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    animation: scrim-in 160ms ease-out both;
+}
+
+@keyframes scrim-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.fixed.inset-0 > .bg-white {
+    border: 1px solid var(--border-soft);
+    box-shadow: var(--shadow-lg);
+    animation: panel-in 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes panel-in {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.985);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+.modal-backdrop {
+    cursor: pointer;
+}
+
+.modal-content {
+    cursor: default;
+}
+
+/* Scrollbars */
+* {
+    scrollbar-color: var(--n-300) transparent;
+    scrollbar-width: thin;
+}
+
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--n-300);
+    border: 2px solid transparent;
+    background-clip: content-box;
+    border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--n-400);
+    background-clip: content-box;
+}
+
+/* Smooth scrolling */
+html {
+    scroll-behavior: smooth;
+    background-color: var(--bg-bottom);
+}
+
+/* ---------------------------------------------------------------------------
+ * Text scale
+ *
+ * Every length in this stylesheet is in rem, so moving the root font size moves
+ * the whole interface together - type, padding, tap targets, the lot - rather
+ * than growing text inside boxes that stay put and clip it.
+ *
+ * The values are percentages, which resolve against the *browser's* font size
+ * rather than a fixed 16px. Someone who has already raised their system text
+ * size gets that size multiplied, not replaced. No root font-size is declared
+ * for the standard step for the same reason: the browser's preference is the
+ * baseline, and this only ever scales it.
+ *
+ * Applied by assets/js/display.js before first paint.
+ * ------------------------------------------------------------------------ */
+html[data-text-scale="large"] {
+    font-size: 112.5%;
+}
+
+html[data-text-scale="x-large"] {
+    font-size: 125%;
+}
+
+html[data-text-scale="xx-large"] {
+    font-size: 140%;
+}
+
+/* The text-size picker in Settings */
+.scale-choice {
+    border: 0;
+    padding: 0;
+    margin: 0;
+}
+
+/*
+ * Theme and Text size are two of these stacked. The margin reset above lands
+ * after the .mb-* utilities in this file and would win over one, so the gap is
+ * declared here rather than in the markup.
+ */
+.scale-choice + .scale-choice {
+    margin-top: 1.75rem;
+}
+
+.scale-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.875rem;
+    border: 1px solid var(--border-strong);
+    border-radius: 9999px;
+    background-color: var(--field);
+    box-shadow: var(--shadow-sm);
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: border-color 0.15s ease-in-out, background-color 0.15s ease-in-out;
+}
+
+.scale-chip:hover {
+    border-color: var(--g-400);
+}
+
+/* Baseline: works everywhere. */
+.scale-chip input:checked + span {
+    font-weight: 700;
+    color: var(--g-t-700);
+}
+
+/* Enhancement: light the whole chip where :has() is supported. */
+.scale-chip:has(input:checked) {
+    background-color: var(--g-50);
+    border-color: var(--g-400);
+}
+
+/* Each option previews its own size, so the choice is legible before you make it. */
+.scale-chip:nth-of-type(2) span { font-size: 1.05em; }
+.scale-chip:nth-of-type(3) span { font-size: 1.15em; }
+.scale-chip:nth-of-type(4) span { font-size: 1.3em; }
+
+/* ---------------------------------------------------------------------------
+ * Responsive
+ * ------------------------------------------------------------------------ */
+@media (min-width: 640px) {
+    .sm\:p-6 {
+        padding: 1.5rem;
+    }
+
+    .sm\:p-8 {
+        padding: 2rem;
+    }
+
+    .sm\:text-4xl {
+        font-size: 2.25rem;
+        line-height: 2.5rem;
+    }
+
+    .sm\:grid-cols-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .sm\:grid-cols-3 {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .sm\:flex-row {
+        flex-direction: row;
+    }
+
+    .sm\:items-center {
+        align-items: center;
+    }
+}
+
+@media (min-width: 1280px) {
+    .xl\:grid-cols-4 {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+/*
+ * A phone is a smaller board. At the full 4800px the first strip alone is wider
+ * than the screen, so a narrow viewport would show one flat plank and none of
+ * the joinery; scaling the tile keeps two or three species in view.
+ */
+@media (max-width: 720px) {
+    body {
+        background-size: 1800px 100%;
+    }
+}
+
+@media (max-width: 640px) {
+    .text-3xl {
+        font-size: 1.5rem;
+        line-height: 2rem;
+    }
+
+    .text-4xl {
+        font-size: 1.875rem;
+        line-height: 2.25rem;
+    }
+
+    .text-5xl {
+        font-size: 2.25rem;
+        line-height: 1;
+    }
+
+    .text-6xl {
+        font-size: 3rem;
+        line-height: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Print styles */
+@media print {
+    .no-print {
+        display: none !important;
+    }
+
+    body {
+        background: #ffffff;
+    }
+
+    body::before {
+        display: none;
+    }
+}

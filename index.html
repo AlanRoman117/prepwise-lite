@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!--
+      Prepwise makes no network requests at runtime. This policy enforces that:
+      every source is 'self' or blocked outright, and connect-src 'none' means a
+      stray fetch/XHR fails loudly instead of quietly leaking data.
+
+      script-src has no 'unsafe-inline' - that is what the data-action delegation
+      in app.js buys us. style-src does allow inline, because progress bars set
+      width via a style attribute; style injection is far lower risk than script
+      injection, and with default-src 'none' there is no origin to exfiltrate to.
+
+      Note: frame-ancestors is ignored in a meta tag and needs an HTTP header if
+      clickjacking protection is wanted at deploy time.
+    -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PrepWise Lite - Smart Pantry Tracking</title>
+    <!-- Inline data: URI, allowed by img-src 'self' data:. A sprout in the
+         Kitchen Garden palette (--g-600 ground, maple/cherry leaves) — no file
+         request, so nothing new for the allowlist or the CSP. -->
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23567e39'/%3E%3Cpath d='M32 54V32' stroke='%23f2e3c2' stroke-width='4.5' stroke-linecap='round'/%3E%3Cpath d='M32 36C32 25 25 18 14 18c0 11 7 18 18 18z' fill='%23f2e3c2'/%3E%3Cpath d='M32 30c0-9 6-15 15-15 0 9-6 15-15 15z' fill='%23e9c8a6'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <!-- Loaded here, not with the others at the end of <body>: it sets the root
+         font size, which every rem in the stylesheet depends on. After first
+         paint it would cause a visible jump on every load. -->
+    <script src="assets/js/display.js"></script>
+</head>
+<body>
+    <!-- The wooden-sepia ground and its grain are painted on body/body::before,
+         so #app stays transparent and lets them through. -->
+    <div id="app" class="min-h-screen">
+        <div class="max-w-4xl mx-auto p-4 sm:p-6">
+            <!-- Header -->
+            <header class="mb-6">
+                <h1 class="text-3xl sm:text-4xl font-bold text-gray-800 mb-2">PrepWise <span class="wordmark-lite">Lite</span></h1>
+                <p class="text-gray-600">Smart pantry tracking and recipe management</p>
+            </header>
+
+            <!-- Navigation -->
+            <nav class="flex gap-2 mb-6 overflow-x-auto pb-2" id="navigation" role="navigation" aria-label="Main navigation">
+                <button id="overview-btn" class="nav-btn active px-6 py-3 rounded-xl font-medium transition whitespace-nowrap" aria-label="View overview dashboard">
+                    Overview
+                </button>
+                <button id="inventory-btn" class="nav-btn px-6 py-3 rounded-xl font-medium transition whitespace-nowrap" aria-label="View inventory">
+                    Inventory
+                </button>
+                <button id="recipes-btn" class="nav-btn px-6 py-3 rounded-xl font-medium transition whitespace-nowrap" aria-label="View recipes">
+                    Recipes
+                </button>
+                <button id="timers-btn" class="nav-btn px-6 py-3 rounded-xl font-medium transition whitespace-nowrap" aria-label="View timers">
+                    Timers<span id="timer-badge" class="timer-badge hidden" aria-live="polite"></span>
+                </button>
+                <button id="settings-btn" class="nav-btn px-6 py-3 rounded-xl font-medium transition whitespace-nowrap" aria-label="View settings and data management">
+                    Settings
+                </button>
+            </nav>
+
+            <!-- Main Content Area -->
+            <main id="main-content" role="main">
+                <!-- Overview View -->
+                <section id="overview-view" class="view active space-y-6" aria-labelledby="overview-heading">
+                    <!-- Inventory Status Card -->
+                    <div class="hero-card rounded-2xl p-6 text-white shadow-lg" role="region" aria-labelledby="inventory-status-heading">
+                        <h2 id="inventory-status-heading" class="text-2xl font-bold mb-4">Inventory Status</h2>
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div id="overall-percentage" class="text-5xl font-bold" aria-live="polite">0%</div>
+                                <div class="hero-sub">Overall Stock Level</div>
+                            </div>
+                            <!-- Decorative: the jar's fill level restates the
+                                 percentage beside it, which is already announced
+                                 to screen readers via aria-live. -->
+                            <div id="pantry-emblem" class="hero-emblem" aria-hidden="true"></div>
+                        </div>
+                    </div>
+
+                    <!-- First run: an empty overview is all zeroes, which teaches
+                         nothing. Offer the sample kitchen rather than a blank wall. -->
+                    <div id="overview-sample-prompt" class="bg-white rounded-xl p-5 shadow border border-gray-100 hidden" role="region" aria-labelledby="overview-sample-heading">
+                        <h3 id="overview-sample-heading" class="font-semibold text-gray-800 flex items-center gap-2 mb-2">
+                            <span role="img" aria-label="Sprout icon">&#127793;</span>
+                            Nothing in here yet
+                        </h3>
+                        <p class="text-sm text-gray-600 mb-4">Add your first item under Inventory &mdash; or load a small demo kitchen to see how PrepWise behaves with a stocked pantry, recipes and a shopping list. You can clear it out again at any time.</p>
+                        <button data-action="sample-data-load" class="bg-green-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-green-700 transition" aria-label="Load the sample kitchen">
+                            <span role="img" aria-label="Sprout icon">&#127793;</span>
+                            <span class="font-medium">Load Sample Data</span>
+                        </button>
+                    </div>
+
+                    <!-- Stats Grid -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                        <div class="bg-white rounded-xl p-5 shadow border border-gray-100" role="region" aria-labelledby="available-recipes-heading">
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 id="available-recipes-heading" class="font-semibold text-gray-800">Available Recipes</h3>
+                                <div id="chef-hat-icon" class="w-5 h-5 text-green-600" role="img" aria-label="Chef hat icon"></div>
+                            </div>
+                            <div id="available-recipes" class="text-3xl font-bold text-green-600" aria-live="polite">0</div>
+                            <div id="total-recipes" class="text-sm text-gray-500">out of 0 total</div>
+                        </div>
+
+                        <div class="bg-white rounded-xl p-5 shadow border border-gray-100" role="region" aria-labelledby="low-stock-heading">
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 id="low-stock-heading" class="font-semibold text-gray-800">Low Stock Items</h3>
+                                <div id="shopping-cart-icon" class="w-5 h-5 text-orange-600" role="img" aria-label="Shopping cart icon"></div>
+                            </div>
+                            <div id="low-stock-count" class="text-3xl font-bold text-orange-600" aria-live="polite">0</div>
+                            <div class="text-sm text-gray-500">need restocking</div>
+                        </div>
+
+                        <div class="bg-white rounded-xl p-5 shadow border border-gray-100" role="region" aria-labelledby="expiring-soon-heading">
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 id="expiring-soon-heading" class="font-semibold text-gray-800">Expiring Soon</h3>
+                                <div class="w-5 h-5 text-yellow-600" role="img" aria-label="Warning icon">⚠️</div>
+                            </div>
+                            <div id="expiring-soon-count" class="text-3xl font-bold text-yellow-600" aria-live="polite">0</div>
+                            <div class="text-sm text-gray-500">within 3 days</div>
+                        </div>
+
+                        <div id="expired-tile" class="bg-white rounded-xl p-5 shadow border border-gray-100" role="region" aria-labelledby="expired-items-heading">
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 id="expired-items-heading" class="font-semibold text-gray-800">Expired Items</h3>
+                                <div class="w-5 h-5 text-red-600" role="img" aria-label="Alert icon">🚨</div>
+                            </div>
+                            <div id="expired-count" class="text-3xl font-bold text-red-600" aria-live="polite">0</div>
+                            <div class="text-sm text-gray-500">need attention</div>
+                        </div>
+                    </div>
+
+                    <!-- Expiration Alert -->
+                    <div id="expiration-alert" class="bg-red-50 rounded-xl p-5 border-2 border-red-300 shadow hidden" role="alert" aria-live="polite">
+                        <div class="flex justify-between items-start mb-3">
+                            <h3 class="font-semibold text-red-900 flex items-center gap-2">
+                                <span class="text-lg" role="img" aria-label="Alert icon">🚨</span>
+                                Items Requiring Attention
+                            </h3>
+                        </div>
+                        <div id="expiration-list" class="space-y-3"></div>
+                    </div>
+
+                    <!-- Conflicts Alert -->
+                    <div id="conflicts-alert" class="bg-purple-50 rounded-xl p-5 border-2 border-purple-300 shadow hidden" role="alert" aria-live="polite">
+                        <div class="flex justify-between items-start mb-3">
+                            <h3 class="font-semibold text-purple-900 flex items-center gap-2">
+                                <span class="text-lg" role="img" aria-label="Lightning bolt icon">⚡</span>
+                                Conflicting Ingredients (Shared Across Multiple Recipes)
+                            </h3>
+                            <button data-action="copy-conflicts" class="bg-purple-600 text-white px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 hover:bg-purple-700 transition" aria-label="Copy conflicting ingredients to the clipboard">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                Copy list
+                            </button>
+                        </div>
+                        <div id="conflicts-list" class="space-y-3"></div>
+                    </div>
+
+                    <!-- Shopping List -->
+                    <div id="shopping-list" class="bg-orange-50 rounded-xl p-5 border border-orange-200 shadow hidden" role="region" aria-labelledby="shopping-list-heading">
+                        <div class="flex justify-between items-start mb-3">
+                            <h3 id="shopping-list-heading" class="font-semibold text-orange-900">Shopping List</h3>
+                            <button data-action="copy-shopping" class="bg-orange-600 text-white px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 hover:bg-orange-700 transition" aria-label="Copy shopping list to the clipboard">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                Copy list
+                            </button>
+                        </div>
+                        <div id="shopping-items" class="space-y-2"></div>
+                    </div>
+
+                    <!-- Share with an AI Assistant, in brief. The full section in
+                         Settings keeps the detail; this is the shortcut for the
+                         moment you are actually looking at your shopping list. -->
+                    <div id="overview-ai-card" class="bg-white rounded-xl p-5 shadow border border-gray-100 hidden" role="region" aria-labelledby="overview-ai-heading">
+                        <div class="overview-cta">
+                            <div>
+                                <h3 id="overview-ai-heading" class="font-semibold text-gray-800 flex items-center gap-2 mb-2">
+                                    <span role="img" aria-label="Sparkles icon">&#10024;</span>
+                                    Share with an AI Assistant
+                                </h3>
+                                <p class="text-sm text-gray-600">An assistant can suggest recipes from what you already have, or work out what to buy. This copies a plain-English summary of your pantry to the clipboard &mdash; you then paste it into the service you prefer, so where your data goes stays your decision.</p>
+                            </div>
+                            <button data-action="ai-copy" class="bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-purple-700 transition whitespace-nowrap" aria-label="Copy an AI-friendly summary of your kitchen to the clipboard">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                <span class="font-medium">Copy to AI</span>
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Inventory View -->
+                <section id="inventory-view" class="view space-y-4" aria-labelledby="inventory-heading">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 id="inventory-heading" class="text-2xl font-bold text-gray-800">Inventory</h2>
+                        <div class="flex gap-2">
+                            <button data-action="quick-entry" class="bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-purple-700 transition" aria-label="Quick entry to add items manually">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                    <polyline points="14,2 14,8 20,8"/>
+                                    <line x1="16" y1="13" x2="8" y2="13"/>
+                                    <line x1="16" y1="17" x2="8" y2="17"/>
+                                    <polyline points="10,9 9,9 8,9"/>
+                                </svg>
+                                Quick Entry
+                            </button>
+                            <button id="add-inventory-btn" class="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition" aria-label="Add new inventory item">
+                                <span class="plus-icon" role="img" aria-label="Plus icon"></span> Add Item
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Inventory Form -->
+                    <div id="inventory-form" class="bg-white rounded-xl p-5 shadow-lg border-2 border-blue-500 hidden">
+                        <label for="item-name" class="sr-only">Item name</label>
+                        <input type="text" id="item-name" placeholder="Item name" class="w-full px-3 py-2 border rounded-lg mb-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent" aria-required="true">
+                        <div class="grid grid-cols-2 gap-3 mb-3">
+                            <div>
+                                <label for="item-current" class="sr-only">Current quantity</label>
+                                <input type="number" id="item-current" placeholder="Current" class="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full" aria-required="true">
+                            </div>
+                            <div>
+                                <label for="item-max" class="sr-only">Maximum quantity</label>
+                                <input type="number" id="item-max" placeholder="Max" class="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full" aria-required="true">
+                            </div>
+                        </div>
+                        <label for="item-unit" class="sr-only">Unit of measurement</label>
+                        <select id="item-unit" data-change-action="remember-unit" class="w-full px-3 py-2 border rounded-lg mb-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent" aria-required="true">
+                            <option value="units">Units</option>
+                            <option value="oz">Ounces (oz)</option>
+                            <option value="lb">Pounds (lb)</option>
+                            <option value="g">Grams (g)</option>
+                            <option value="kg">Kilograms (kg)</option>
+                            <option value="cups">Cups</option>
+                            <option value="tbsp">Tablespoons</option>
+                            <option value="tsp">Teaspoons</option>
+                        </select>
+                        
+                        <!-- Expiration Date Section -->
+                        <div class="expiration-section border-t pt-3 mt-3">
+                            <div class="flex items-center justify-between mb-2">
+                                <label class="flex items-center gap-2 text-sm font-medium text-gray-700" for="track-expiration-checkbox">
+                                    <input type="checkbox" id="track-expiration-checkbox" class="rounded" data-change-action="toggle-expiration">
+                                    Track Expiration Date
+                                </label>
+                                <span class="text-xs text-gray-500">Optional</span>
+                            </div>
+                            
+                            <div id="expiration-inputs" class="space-y-2" style="display: none;">
+                                <div class="flex gap-2">
+                                    <div class="flex-1">
+                                        <label for="purchase-date-input" class="block text-xs text-gray-600 mb-1">Purchase Date</label>
+                                        <input type="date" id="purchase-date-input" class="w-full px-2 py-1 border rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                    </div>
+                                    <div class="flex-1">
+                                        <label for="expiration-date-input" class="block text-xs text-gray-600 mb-1">Expiration Date</label>
+                                        <input type="date" id="expiration-date-input" class="w-full px-2 py-1 border rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                    </div>
+                                </div>
+                                
+                                <div id="suggestion-box" class="suggestion-box bg-blue-50 p-2 rounded text-xs" style="display: none;" role="status" aria-live="polite">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-blue-700" id="suggestion-text">
+                                            💡 Calculating suggested expiry...
+                                        </span>
+                                        <button type="button" id="use-suggestion-btn" class="text-blue-600 hover:bg-blue-100 px-2 py-1 rounded" style="display: none;" aria-label="Use suggested expiration date">
+                                            Use
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex gap-2 mt-4">
+                            <button type="button" id="save-inventory-btn" class="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition flex items-center justify-center gap-2" aria-label="Save inventory item">
+                                <span class="check-icon" role="img" aria-label="Check icon"></span> Save
+                            </button>
+                            <button type="button" id="cancel-inventory-btn" class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition flex items-center justify-center gap-2" aria-label="Cancel adding inventory item">
+                                <span class="x-icon" role="img" aria-label="Close icon"></span> Cancel
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Search, sort and the A-Z rail -->
+                    <div class="inventory-controls">
+                        <div class="relative flex-1">
+                            <span class="search-icon absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" role="img" aria-label="Search icon"></span>
+                            <label for="inventory-search" class="sr-only">Search your pantry</label>
+                            <input type="text" id="inventory-search" placeholder="Search your pantry..." class="w-full pl-10 pr-4 py-2 border rounded-lg">
+                        </div>
+                        <label for="inventory-sort" class="sr-only">Sort inventory</label>
+                        <select id="inventory-sort" data-change-action="inventory-sort" class="px-4 py-2 border rounded-lg">
+                            <option value="name">A to Z</option>
+                            <option value="low">Lowest stock first</option>
+                            <option value="expiry">Expiring soonest</option>
+                        </select>
+                    </div>
+                    <p id="inventory-count" class="text-sm text-gray-500" aria-live="polite"></p>
+
+                    <nav id="inventory-index" class="inventory-index hidden" data-jump-action="inventory-jump" aria-label="Jump to letter"></nav>
+
+                    <!-- Inventory List -->
+                    <div id="inventory-list" class="space-y-3"></div>
+                </section>
+
+                <!-- Recipes View -->
+                <section id="recipes-view" class="view space-y-4" aria-labelledby="recipes-heading">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+                        <h2 id="recipes-heading" class="text-2xl font-bold text-gray-800">Recipes</h2>
+                        <div class="flex gap-2 flex-wrap">
+                            <button id="allergy-profile-btn" data-action="allergy-profile" class="bg-orange-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-orange-700 transition" aria-label="Manage allergy profile">
+                                <span>⚠️</span> Allergies
+                            </button>
+                            <button id="export-recipes-btn" class="bg-green-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-green-700 transition" aria-label="Export recipes">
+                                <span class="download-icon" role="img" aria-label="Download icon"></span> Export
+                            </button>
+                            <button id="add-recipe-btn" class="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition" aria-label="Add new recipe">
+                                <span class="plus-icon" role="img" aria-label="Plus icon"></span> Add Recipe
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Search and Filter -->
+                    <div class="flex flex-col sm:flex-row gap-3 mb-4">
+                        <div class="relative flex-1">
+                            <span class="search-icon absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" role="img" aria-label="Search icon"></span>
+                            <label for="recipe-search" class="sr-only">Search recipes or ingredients</label>
+                            <input type="text" id="recipe-search" placeholder="Search recipes or ingredients..." class="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <label for="recipe-filter" class="sr-only">Filter recipes</label>
+                        <select id="recipe-filter" class="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="all">All Recipes (0)</option>
+                            <option value="canMake">Can Make (0)</option>
+                            <option value="missing">Missing Ingredients (0)</option>
+                            <option value="conflict">Has Conflicts (0)</option>
+                        </select>
+                    </div>
+
+                    <!-- Recipe Conflicts Alert -->
+                    <div id="recipe-conflicts-alert" class="bg-purple-50 rounded-xl p-4 border-2 border-purple-300 shadow hidden" role="alert" aria-live="polite">
+                        <h3 class="font-semibold text-purple-900 mb-2 flex items-center gap-2">
+                            <span class="text-lg" role="img" aria-label="Lightning bolt icon">⚡</span>
+                            Conflicting Ingredients Alert
+                        </h3>
+                        <div id="recipe-conflicts-summary" class="text-sm text-purple-800"></div>
+                        <div id="recipe-conflicts-details" class="mt-2 space-y-1"></div>
+                    </div>
+
+                    <!-- Recipe Form -->
+                    <div id="recipe-form" class="bg-white rounded-xl p-5 shadow-lg border-2 border-blue-500 space-y-4 hidden">
+                        <label for="recipe-name" class="sr-only">Recipe name</label>
+                        <input type="text" id="recipe-name" placeholder="Recipe name" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" aria-required="true">
+                        
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div>
+                                <label for="recipe-prep-time" class="block text-sm font-medium text-gray-700 mb-1">Prep time</label>
+                                <div class="field-with-unit">
+                                    <input type="text" id="recipe-prep-time" placeholder="15" inputmode="numeric" class="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full">
+                                    <span class="field-unit">minutes</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label for="recipe-cook-time" class="block text-sm font-medium text-gray-700 mb-1">Cook time</label>
+                                <div class="field-with-unit">
+                                    <input type="text" id="recipe-cook-time" placeholder="30" inputmode="numeric" class="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full">
+                                    <span class="field-unit">minutes</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label for="recipe-servings" class="block text-sm font-medium text-gray-700 mb-1">Servings</label>
+                                <div class="field-with-unit">
+                                    <input type="text" id="recipe-servings" placeholder="4" inputmode="numeric" class="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full">
+                                    <span class="field-unit">people</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <h4 class="font-semibold mb-2 text-gray-700">Ingredients</h4>
+                            <p class="text-sm text-gray-600 mb-3">
+                                Type any ingredient &mdash; existing pantry items will suggest themselves as you go.
+                                Every new ingredient joins your inventory, shared by each recipe that uses it.
+                                Tick <strong>I have this</strong> and it is stocked at the amount below; leave it
+                                unticked and it goes in empty, so it appears on your shopping list straight away.
+                            </p>
+                            <div id="no-inventory-warning" class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3 text-sm text-blue-900 hidden" role="status">
+                                Your pantry is empty, which is fine &mdash; start with the recipes you cook and tick off
+                                what you already own. Everything else becomes your shopping list.
+                            </div>
+                            <datalist id="inventory-options"></datalist>
+                            <div id="recipe-ingredients" class="space-y-2"></div>
+                            <button id="add-ingredient-btn" class="text-blue-600 text-sm hover:bg-blue-50 px-3 py-2 rounded-lg transition" type="button" aria-label="Add ingredient to recipe">
+                                + Add Ingredient
+                            </button>
+                        </div>
+
+                        <div>
+                            <h4 class="font-semibold mb-2 text-gray-700">Instructions</h4>
+                            <div id="recipe-steps" class="space-y-3"></div>
+                            <div class="flex gap-2">
+                                <button id="add-step-btn" class="text-blue-600 text-sm hover:bg-blue-50 px-3 py-2 rounded-lg transition" type="button" aria-label="Add instruction step">
+                                    + Add Step
+                                </button>
+                                <button id="add-paragraph-btn" class="text-blue-600 text-sm hover:bg-blue-50 px-3 py-2 rounded-lg transition" type="button" aria-label="Add instruction paragraph">
+                                    + Add Paragraph
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-2">
+                            <button type="button" id="save-recipe-btn" class="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition flex items-center justify-center gap-2" aria-label="Save recipe">
+                                <span class="check-icon" role="img" aria-label="Check icon"></span> Save Recipe
+                            </button>
+                            <button type="button" id="cancel-recipe-btn" class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition flex items-center justify-center gap-2" aria-label="Cancel creating recipe">
+                                <span class="x-icon" role="img" aria-label="Close icon"></span> Cancel
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- No Recipes Message -->
+                    <div id="no-recipes-message" class="text-center py-12 text-gray-500 hidden" role="status">
+                        <div class="chef-hat-icon w-12 h-12 mx-auto mb-3 opacity-50" role="img" aria-label="Chef hat icon"></div>
+                        <p>No recipes found matching your search.</p>
+                    </div>
+
+                    <nav id="recipe-index" class="inventory-index hidden" data-jump-action="recipe-jump" aria-label="Jump to letter"></nav>
+
+                    <!-- Recipes Grid -->
+                    <div id="recipes-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-4" role="list"></div>
+                </section>
+
+                <!-- Timers View -->
+                <section id="timers-view" class="view space-y-6" aria-labelledby="timers-heading">
+                    <div>
+                        <h2 id="timers-heading" class="text-2xl font-bold text-gray-800 mb-2">Timers</h2>
+                        <p class="text-gray-600">Timers keep running if you switch tabs, close the app, or reload &mdash; they count against the clock, not the page.</p>
+                    </div>
+
+                    <div class="bg-white rounded-2xl p-6 sm:p-8 shadow border border-gray-100">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-3">Start a timer</h3>
+                        <div id="timer-presets" class="flex gap-2 flex-wrap mb-6" role="group" aria-label="Timer presets"></div>
+
+                        <div class="timer-custom">
+                            <div>
+                                <label for="timer-hours" class="block text-sm font-medium text-gray-700 mb-1">Hours</label>
+                                <input type="number" id="timer-hours" min="0" max="99" step="1" placeholder="0" inputmode="numeric"
+                                       data-unit="Hours" data-change-action="clamp-number">
+                            </div>
+                            <div>
+                                <label for="timer-minutes" class="block text-sm font-medium text-gray-700 mb-1">Minutes</label>
+                                <input type="number" id="timer-minutes" min="0" max="59" step="1" placeholder="0" inputmode="numeric"
+                                       data-unit="Minutes" data-change-action="clamp-number">
+                            </div>
+                            <div>
+                                <label for="timer-seconds" class="block text-sm font-medium text-gray-700 mb-1">Seconds</label>
+                                <input type="number" id="timer-seconds" min="0" max="59" step="1" placeholder="0" inputmode="numeric"
+                                       data-unit="Seconds" data-change-action="clamp-number">
+                            </div>
+                            <div class="timer-custom-label">
+                                <label for="timer-label" class="block text-sm font-medium text-gray-700 mb-1">What for? (optional)</label>
+                                <input type="text" id="timer-label" maxlength="80" placeholder="Pasta, eggs, proving&hellip;">
+                            </div>
+                            <button type="button" data-action="timer-start-custom" class="bg-green-600 text-white px-5 py-2 rounded-lg hover:bg-green-700 transition whitespace-nowrap">
+                                Start timer
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-lg font-semibold text-gray-800">Running</h3>
+                        <button type="button" id="clear-finished-timers" data-action="timer-clear-finished" class="hidden text-sm bg-white text-gray-700 border border-gray-300 hover:bg-gray-100 px-4 py-2 rounded-lg transition">
+                            Clear finished
+                        </button>
+                    </div>
+
+                    <!-- No list role: each card is its own labelled role="group". -->
+                    <div id="timers-list" class="timer-grid"></div>
+
+                    <div id="timers-empty" class="text-center py-12 text-gray-500" role="status">
+                        <p>No timers yet. Pick a preset above, or start one from a recipe step.</p>
+                    </div>
+                </section>
+
+                <!-- Settings View -->
+                <section id="settings-view" class="view space-y-6" aria-labelledby="settings-heading">
+                    <!-- The heading sits on the board, like the Inventory and
+                         Recipes headings do; each section below is its own card
+                         so long-form text still has a plain surface under it. -->
+                    <div>
+                        <h2 id="settings-heading" class="text-2xl font-bold text-gray-800 mb-2">Data Management &amp; Settings</h2>
+                        <p class="text-gray-600">Manage your data backups, exports, and imports. All data is stored locally on your device.</p>
+                    </div>
+
+                    <!-- Backup Reminder -->
+                    <div id="backup-reminder" class="bg-yellow-50 border border-yellow-300 rounded-xl p-5 shadow hidden">
+                        <div class="flex items-start gap-3">
+                            <span class="text-2xl" role="img" aria-label="Warning icon">&#9888;&#65039;</span>
+                            <div class="flex-1">
+                                <h4 class="font-semibold text-yellow-900 mb-2">Backup Reminder</h4>
+                                <p class="text-sm text-yellow-800 mb-3">It's been over 30 days since your last backup. We recommend exporting your data regularly to prevent data loss.</p>
+                                <button data-action="backup-reminder-export" class="bg-yellow-600 hover:bg-yellow-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition">
+                                    Backup Now
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Data Privacy Notice -->
+                    <div class="bg-white rounded-2xl p-6 sm:p-8 shadow border border-gray-100">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                            <span role="img" aria-label="Privacy icon">&#128274;</span>
+                            Privacy &amp; Data Ownership
+                        </h3>
+                        <p class="text-gray-600 mb-4">PrepWise keeps three things: what is in your pantry, your recipes, and any food allergies you record along with how severe each one is. No name, no account, no contact details, no location &mdash; it never asks, so it never has them.</p>
+                        <div class="bg-green-50 border border-green-200 rounded-xl p-5 space-y-3 text-green-900">
+                            <p><strong>&#10003; Stored on your device:</strong> In this browser, on this device, and nowhere else</p>
+                            <p><strong>&#10003; No servers involved:</strong> There is no account to make and nothing to upload to</p>
+                            <p><strong>&#10003; Zero tracking:</strong> No analytics, cookies, or third-party tracking</p>
+                            <p><strong>&#10003; Yours to move:</strong> Export, back up, or delete the lot at any time</p>
+                            <p><strong>&#10003; No AI assistant unless you say so:</strong> On browsers that can offer PrepWise to an assistant, that is switched <strong>off</strong> until you turn it on yourself &mdash; see <em>AI Agents in This Browser</em> below</p>
+                        </div>
+                    </div>
+
+                    <!-- Display & Accessibility -->
+                    <div class="bg-white rounded-2xl p-6 sm:p-8 shadow border border-gray-100">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                            <span role="img" aria-label="Text size icon">&#128065;&#65039;</span>
+                            Display &amp; Accessibility
+                        </h3>
+                        <p class="text-gray-600 mb-4">How PrepWise looks on this device. Both settings stay here and are not included in backups &mdash; the kitchen tablet can run large and dark while the laptop does not.</p>
+                        <fieldset class="scale-choice">
+                            <legend class="font-medium text-gray-700 mb-2">Theme</legend>
+                            <div class="flex gap-2 flex-wrap">
+                                <label class="scale-chip">
+                                    <input type="radio" name="theme" value="system" data-change-action="theme" checked>
+                                    <span>Follow system</span>
+                                </label>
+                                <label class="scale-chip">
+                                    <input type="radio" name="theme" value="light" data-change-action="theme">
+                                    <span>Light</span>
+                                </label>
+                                <label class="scale-chip">
+                                    <input type="radio" name="theme" value="dark" data-change-action="theme">
+                                    <span>Dark</span>
+                                </label>
+                            </div>
+                            <p class="text-sm text-gray-500 mt-3">Follow system matches your device&rsquo;s appearance setting and changes with it &mdash; including automatically at sunset, if your device does that.</p>
+                        </fieldset>
+                        <fieldset class="scale-choice">
+                            <legend class="font-medium text-gray-700 mb-2">Text size</legend>
+                            <div class="flex gap-2 flex-wrap">
+                                <label class="scale-chip">
+                                    <input type="radio" name="text-scale" value="standard" data-change-action="text-scale" checked>
+                                    <span>Standard</span>
+                                </label>
+                                <label class="scale-chip">
+                                    <input type="radio" name="text-scale" value="large" data-change-action="text-scale">
+                                    <span>Large</span>
+                                </label>
+                                <label class="scale-chip">
+                                    <input type="radio" name="text-scale" value="x-large" data-change-action="text-scale">
+                                    <span>Extra large</span>
+                                </label>
+                                <label class="scale-chip">
+                                    <input type="radio" name="text-scale" value="xx-large" data-change-action="text-scale">
+                                    <span>Largest</span>
+                                </label>
+                            </div>
+                        </fieldset>
+                        <p class="text-sm text-gray-500 mt-3">This multiplies whatever text size your browser or device is already set to, so it stacks with your system accessibility settings rather than overriding them.</p>
+                    </div>
+
+                    <!-- Share with AI Section -->
+                    <div class="bg-white rounded-2xl p-6 sm:p-8 shadow border border-gray-100">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                            <span role="img" aria-label="Sparkles icon">&#10024;</span>
+                            Share with an AI Assistant
+                        </h3>
+                        <p class="text-gray-600 mb-4">Produces a plain-English Markdown summary of your pantry, recipes, and shopping needs &mdash; formatted so an AI assistant can suggest meals from what you already have, work out substitutions, or plan a shop. Expiration dates are recalculated at the moment you export, so nothing is stale.</p>
+                        <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
+                            <p class="text-sm text-amber-900 mb-2">
+                                <strong>Where it goes is your call.</strong> Nothing is sent anywhere by PrepWise; you copy or download the summary and decide who sees it. Whatever you paste into an AI assistant goes to that provider. Two things are left out even then:
+                            </p>
+                            <ul id="ai-export-exclusions" class="text-sm text-amber-900 list-disc list-inside space-y-1"></ul>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <button data-action="ai-copy" class="bg-purple-600 text-white px-4 py-3 rounded-lg flex items-center justify-center gap-2 hover:bg-purple-700 transition">
+                                <span role="img" aria-label="Clipboard icon">&#128203;</span>
+                                <span class="font-medium">Copy to Clipboard</span>
+                            </button>
+                            <button data-action="ai-download" class="bg-purple-600 text-white px-4 py-3 rounded-lg flex items-center justify-center gap-2 hover:bg-purple-700 transition">
+                                <span class="download-icon" role="img" aria-label="Download icon"></span>
+                                <span class="font-medium">Download as Markdown</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- AI Agents in This Browser.
+                         Hidden until webmcp.js confirms the browser has the API,
+                         so there is no dead control on the other 99% of visits.
+                         Sits next to "Share with an AI Assistant" because it is
+                         the same subject: one is you carrying data to an
+                         assistant, the other is an assistant reaching in. -->
+                    <div id="agent-tools-section" class="bg-white rounded-2xl p-6 sm:p-8 shadow border border-gray-100 hidden">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                            <span role="img" aria-label="Plug icon">&#128268;</span>
+                            AI Agents in This Browser
+                        </h3>
+                        <p class="text-gray-600 mb-4">Your browser can let an AI assistant work with PrepWise directly &mdash; ask what is in the pantry or what needs buying, hand it a photo of your fridge and have it offer to fill in your inventory, or have it write up a recipe with a timer on each step. This is off until you switch it on below, and stays off on every other browser you use PrepWise in.</p>
+                        <p class="text-sm text-gray-600 mb-3">If you do switch it on:</p>
+                        <div class="bg-green-50 border border-green-200 rounded-xl p-5 space-y-3 text-green-900 mb-6">
+                            <p><strong>&#10003; Answers are free, changes are not:</strong> An assistant can read your pantry. Anything that would change it opens the same preview a backup file gets, and waits for you</p>
+                            <p><strong>&#10003; It can add, never delete:</strong> A misread photo can suggest the wrong yoghurt. It cannot empty your pantry &mdash; that option is not offered</p>
+                            <p><strong>&#10003; Writing a recipe touches nothing else:</strong> An assistant adding a recipe is given no access to your inventory, so a recipe cannot quietly restock or spend your pantry</p>
+                            <p><strong>&#10003; Allergy severity stays here:</strong> Exactly as with the Markdown export, assistants get allergen names and never how badly each one affects you</p>
+                            <p><strong>&#10003; Still no servers:</strong> The assistant runs in your browser and PrepWise sends nothing. Whatever it reads goes wherever that assistant sends it, which is your choice of assistant</p>
+                        </div>
+                        <label class="flex items-center gap-3 cursor-pointer" for="agent-tools-toggle">
+                            <input type="checkbox" id="agent-tools-toggle" data-change-action="agent-tools">
+                            <span class="font-medium text-gray-800">Let AI assistants in this browser use PrepWise</span>
+                        </label>
+                        <p class="text-sm text-gray-500 mt-3">Belongs to this browser, like the theme and text size, so it is not carried in backups.</p>
+                    </div>
+
+                    <!-- Import Data Section -->
+                    <div class="bg-white rounded-2xl p-6 sm:p-8 shadow border border-gray-100">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                            <span role="img" aria-label="Upload icon">&#128229;</span>
+                            Import Data
+                        </h3>
+                        <p class="text-gray-600 mb-4">Restore data from a previously exported backup file. You'll be able to preview the contents and choose whether to merge with existing data or replace everything.</p>
+                        <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+                            <p class="text-sm text-blue-900">
+                                <strong>Note:</strong> After selecting a file, you'll see a preview and can choose to merge imported data with your existing data or replace all data. You'll be asked to confirm before any changes are made.
+                            </p>
+                        </div>
+                        <input type="file" id="import-file-input" accept=".json" class="hidden">
+                        <button data-action="import-pick" class="bg-blue-600 text-white px-4 py-3 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition">
+                            <span role="img" aria-label="Upload icon">&#128229;</span>
+                            <span class="font-medium">Select Backup File to Import</span>
+                        </button>
+                    </div>
+
+                    <!-- Export Data Section -->
+                    <div class="bg-white rounded-2xl p-6 sm:p-8 shadow border border-gray-100">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                            <span role="img" aria-label="Download icon">&#128190;</span>
+                            Export Data
+                        </h3>
+                        <p class="text-gray-600 mb-6">Download your data as JSON files to backup, share, or transfer to another device. Click any button below to instantly download the selected data.</p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <button data-action="export-full-backup" class="bg-green-600 text-white px-4 py-3 rounded-lg flex items-center justify-center gap-2 hover:bg-green-700 transition">
+                                <span class="download-icon" role="img" aria-label="Download icon"></span>
+                                <span class="font-medium">Export All Data</span>
+                            </button>
+                            <button data-action="export-inventory" class="bg-green-600 text-white px-4 py-3 rounded-lg flex items-center justify-center gap-2 hover:bg-green-700 transition">
+                                <span class="download-icon" role="img" aria-label="Download icon"></span>
+                                <span class="font-medium">Export Inventory Only</span>
+                            </button>
+                            <button data-action="export-allergy-profile" class="bg-green-600 text-white px-4 py-3 rounded-lg flex items-center justify-center gap-2 hover:bg-green-700 transition">
+                                <span class="download-icon" role="img" aria-label="Download icon"></span>
+                                <span class="font-medium">Export Allergy Profile</span>
+                            </button>
+                            <button data-action="export-recipes" class="bg-green-600 text-white px-4 py-3 rounded-lg flex items-center justify-center gap-2 hover:bg-green-700 transition">
+                                <span class="download-icon" role="img" aria-label="Download icon"></span>
+                                <span class="font-medium">Export Recipes Only</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Backup Information -->
+                    <div class="bg-white rounded-2xl p-6 sm:p-8 shadow border border-gray-100">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                            <span role="img" aria-label="Info icon">&#8505;&#65039;</span>
+                            Backup Information
+                        </h3>
+                        <p class="text-gray-600 mb-4">View your current data statistics and last backup date. Once you have a pantry worth protecting, a reminder appears at the top of this page if it's been more than 30 days since your last backup.</p>
+                        <div class="bg-gray-50 rounded-xl p-5 space-y-3">
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-700 font-medium">Last Backup:</span>
+                                <span id="last-backup-date" class="font-semibold text-gray-900">Never</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-700 font-medium">Total Inventory Items:</span>
+                                <span id="total-inventory-count" class="font-semibold text-gray-900">0</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-700 font-medium">Total Recipes:</span>
+                                <span id="total-recipes-count" class="font-semibold text-gray-900">0</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-700 font-medium">Allergies Tracked:</span>
+                                <span id="total-allergies-count" class="font-semibold text-gray-900">0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sample Data -->
+                    <div class="bg-white rounded-2xl p-6 sm:p-8 shadow border border-gray-100">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                            <span role="img" aria-label="Sprout icon">&#127793;</span>
+                            Try Sample Data
+                        </h3>
+                        <p class="text-gray-600 mb-4">Fill the app with a small demo kitchen &mdash; a stocked pantry, three recipes (two of them missing an ingredient), an expired item and a few step timers &mdash; so you can see how everything behaves before entering your own.</p>
+                        <div class="bg-green-50 border border-green-200 rounded-xl p-4 mb-6">
+                            <p class="text-sm text-green-900">
+                                <strong>Note:</strong> This opens the same preview as a file import, so you can merge the sample into what you already have or replace everything. Nothing changes until you confirm.
+                            </p>
+                        </div>
+                        <button data-action="sample-data-load" class="bg-green-600 text-white px-4 py-3 rounded-lg flex items-center gap-2 hover:bg-green-700 transition">
+                            <span role="img" aria-label="Sprout icon">&#127793;</span>
+                            <span class="font-medium">Load Sample Data</span>
+                        </button>
+                    </div>
+
+                    <!-- Danger Zone -->
+                    <div class="bg-white rounded-2xl p-6 sm:p-8 shadow border border-gray-100">
+                        <h3 class="text-xl font-semibold text-red-600 mb-4 flex items-center gap-2">
+                            <span role="img" aria-label="Warning icon">&#9888;&#65039;</span>
+                            Danger Zone
+                        </h3>
+                        <div class="bg-red-50 border-2 border-red-300 rounded-xl p-5">
+                            <p class="text-sm text-red-900 mb-4">
+                                <strong>Warning:</strong> This action will permanently delete all your data. This cannot be undone.
+                            </p>
+                            <button data-action="clear-data-confirm" class="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-medium transition">
+                                Clear All Data
+                            </button>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- Recipe Viewer Modal -->
+    <div id="recipe-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden" role="dialog" aria-labelledby="modal-recipe-title" aria-modal="true">
+        <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-8">
+            <div class="flex justify-between items-start mb-6">
+                <h2 id="modal-recipe-title" class="text-3xl font-bold text-gray-800"></h2>
+                <button id="close-modal-btn" data-dialog-close class="text-gray-400 hover:text-gray-600 transition" aria-label="Close recipe modal">
+                    <span class="x-icon w-6 h-6" role="img" aria-label="Close icon"></span>
+                </button>
+            </div>
+            
+            <div id="modal-recipe-meta" class="flex gap-4 text-sm text-gray-600 mb-6"></div>
+
+            <div class="mb-6">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-xl font-semibold text-gray-800">Ingredients</h3>
+                    <span id="cook-progress" class="text-sm text-gray-500" aria-live="polite"></span>
+                </div>
+                <p class="text-sm text-gray-500 mb-3">Tick each one off as you use it.</p>
+                <div id="modal-ingredients" class="space-y-2"></div>
+                <button type="button" id="recipe-complete-btn" data-action="recipe-complete"
+                        class="hidden mt-4 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">
+                    Recipe completed
+                </button>
+            </div>
+
+            <div>
+                <h3 class="text-xl font-semibold text-gray-800 mb-3">Instructions</h3>
+                <div id="modal-instructions" class="space-y-4"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recipe Completion Modal -->
+    <div id="recipe-complete-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden" role="dialog" aria-labelledby="recipe-complete-title" aria-modal="true">
+        <div class="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6">
+            <h2 id="recipe-complete-title" class="text-2xl font-bold text-gray-800 mb-2">Take these out of the pantry?</h2>
+            <p class="text-gray-600 mb-4">These are the ingredients you ticked. Untick anything you did not actually use up.</p>
+
+            <div id="recipe-complete-list" class="space-y-2 mb-6"></div>
+
+            <div class="flex gap-3">
+                <button type="button" data-action="recipe-complete-confirm" class="btn-primary px-6 py-3 rounded-xl font-medium transition flex-1">
+                    Deduct and finish
+                </button>
+                <button type="button" data-action="recipe-complete-close" data-dialog-close class="btn-secondary px-6 py-3 rounded-xl font-medium transition">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Options Modal -->
+    <div id="import-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden" role="dialog" aria-labelledby="import-modal-title" aria-modal="true">
+        <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-8">
+            <div class="flex justify-between items-start mb-6">
+                <h2 id="import-modal-title" class="text-2xl font-bold text-gray-800">Import Backup Data</h2>
+                <!-- Wording is set by showImportModal(): the same preview serves a
+                     backup file and the sample kitchen, and calling the sample a
+                     "backup" would be a small lie about where it came from. -->
+                <button data-action="import-close" data-dialog-close class="text-gray-400 hover:text-gray-600 transition" aria-label="Close import modal">
+                    <span class="text-2xl">&times;</span>
+                </button>
+            </div>
+
+            <div class="mb-6">
+                <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+                    <p class="text-sm text-blue-900">
+                        <strong id="import-date-label">Backup Date:</strong> <span id="import-backup-date"></span>
+                    </p>
+                </div>
+
+                <p id="import-adjustments" class="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 hidden" role="status"></p>
+
+                <h3 id="import-contents-heading" class="font-semibold text-gray-800 mb-3">This backup contains:</h3>
+                <ul class="space-y-2 mb-6">
+                    <li class="flex items-center gap-2">
+                        <span class="text-green-600">✓</span>
+                        <span><strong id="import-inventory-count">0</strong> inventory items</span>
+                    </li>
+                    <li class="flex items-center gap-2">
+                        <span class="text-green-600">✓</span>
+                        <span><strong id="import-recipes-count">0</strong> recipes</span>
+                    </li>
+                    <li class="flex items-center gap-2">
+                        <span class="text-green-600">✓</span>
+                        <span><strong id="import-allergies-count">0</strong> allergies in profile</span>
+                    </li>
+                    <li class="flex items-center gap-2">
+                        <span class="text-green-600">✓</span>
+                        <span>Expiration settings</span>
+                    </li>
+                </ul>
+
+                <!-- The contents themselves, not just a count. Shown only for
+                     sources the user did not author (an assistant's proposal):
+                     a backup file is their own, an assistant's suggestion is
+                     something they have never read. Filled by
+                     renderImportDetails(). -->
+                <div id="import-details" class="hidden mb-6">
+                    <h4 id="import-details-heading" class="font-semibold text-gray-800 mb-2">In detail:</h4>
+                    <ul id="import-details-list" class="import-details"></ul>
+                </div>
+
+                <div class="bg-yellow-50 border border-yellow-300 rounded-xl p-4 mb-6">
+                    <h4 class="font-semibold text-yellow-900 mb-2">Choose Import Method:</h4>
+                    <div class="space-y-3">
+                        <label class="flex items-start gap-3 cursor-pointer">
+                            <input type="radio" name="import-method" value="merge" checked class="mt-1">
+                            <div>
+                                <div class="font-medium text-gray-800">Merge with Existing Data</div>
+                                <div class="text-sm text-gray-600">Combine imported data with your current data. Duplicates will be skipped.</div>
+                            </div>
+                        </label>
+                        <!-- Hidden for sources that may only merge (an agent's
+                             proposal). confirmImport() enforces it again. -->
+                        <label id="import-replace-option" class="flex items-start gap-3 cursor-pointer">
+                            <input type="radio" name="import-method" value="replace">
+                            <div>
+                                <div class="font-medium text-gray-800">Replace All Data</div>
+                                <div class="text-sm text-gray-600">Delete all existing data and replace with backup. This cannot be undone.</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex gap-3">
+                <button data-action="import-confirm" class="btn-primary px-6 py-3 rounded-xl font-medium transition flex-1">
+                    Import Data
+                </button>
+                <button data-action="import-close" class="btn-secondary px-6 py-3 rounded-xl font-medium transition">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Clear Data Confirmation Modal -->
+    <div id="clear-data-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden" role="dialog" aria-labelledby="clear-data-modal-title" aria-modal="true">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-8">
+            <div class="text-center mb-6">
+                <div class="text-6xl mb-4">⚠️</div>
+                <h2 id="clear-data-modal-title" class="text-2xl font-bold text-red-600 mb-2">Clear All Data?</h2>
+                <p class="text-gray-600">This action cannot be undone. All your inventory, recipes, and settings will be permanently deleted.</p>
+            </div>
+
+            <div class="bg-red-50 border border-red-300 rounded-xl p-4 mb-6">
+                <p class="text-sm text-red-900">
+                    <strong>You are about to delete:</strong>
+                </p>
+                <ul class="text-sm text-red-900 mt-2 space-y-1">
+                    <li>• <span id="clear-inventory-count">0</span> inventory items</li>
+                    <li>• <span id="clear-recipes-count">0</span> recipes</li>
+                    <li>• <span id="clear-allergies-count">0</span> allergies</li>
+                    <li>• All settings and preferences</li>
+                </ul>
+            </div>
+
+            <div class="mb-6">
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="confirm-clear-checkbox" class="w-4 h-4">
+                    <span class="text-sm text-gray-700">I understand this action cannot be undone</span>
+                </label>
+            </div>
+
+            <div class="flex gap-3">
+                <button data-action="clear-data-execute" id="confirm-clear-btn" disabled class="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-medium transition flex-1 disabled:opacity-50 disabled:cursor-not-allowed">
+                    Delete All Data
+                </button>
+                <button data-action="clear-data-close" data-dialog-close class="btn-secondary px-6 py-3 rounded-xl font-medium transition">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="assets/js/sample-data.js"></script>
+    <script src="assets/js/app.js"></script>
+    <script src="assets/js/timers.js"></script>
+    <script src="assets/js/simple-entry.js"></script>
+    <!-- Last: reads `state` and the import machinery from app.js, and does
+         nothing at all on browsers without the WebMCP API. -->
+    <script src="assets/js/webmcp.js"></script>
+</body>
+</html>

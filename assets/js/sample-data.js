@@ -1,0 +1,341 @@
+/*
+ * The sample pantry, for anyone who wants to see the app with something in it
+ * before typing their own week of shopping into it.
+ *
+ * This is a byte-for-byte copy of prepwise-demo-backup.json, embedded rather
+ * than fetched: the CSP is `default-src 'none'; connect-src 'none'`, so the app
+ * cannot read its own files at runtime, and giving it that power to save a copy
+ * of a 6KB object would be a poor trade. `tests/demo-data.spec.js` fails if the
+ * two ever drift apart.
+ *
+ * It is handed to the ordinary import path - validateBackup() then
+ * sanitizeBackup() - exactly like a file the user picked. Sample data is not
+ * trusted data; it is just data that happens to ship with the app.
+ */
+(function () {
+    'use strict';
+
+    var SAMPLE = {
+        "version": "1.0",
+        "exportDate": "2026-08-10T09:00:00.000Z",
+        "exportType": "demo",
+        "inventory": [
+            {
+                "id": 1001,
+                "name": "Spaghetti",
+                "current": 400,
+                "max": 500,
+                "unit": "g"
+            },
+            {
+                "id": 1002,
+                "name": "Olive Oil",
+                "current": 24,
+                "max": 32,
+                "unit": "oz"
+            },
+            {
+                "id": 1003,
+                "name": "Garlic",
+                "current": 4,
+                "max": 10,
+                "unit": "units"
+            },
+            {
+                "id": 1004,
+                "name": "Onions",
+                "current": 3,
+                "max": 6,
+                "unit": "units"
+            },
+            {
+                "id": 1005,
+                "name": "Canned Tomatoes",
+                "current": 4,
+                "max": 6,
+                "unit": "units"
+            },
+            {
+                "id": 1006,
+                "name": "Sea Salt",
+                "current": 8,
+                "max": 16,
+                "unit": "oz"
+            },
+            {
+                "id": 1007,
+                "name": "Black Pepper",
+                "current": 2,
+                "max": 4,
+                "unit": "oz"
+            },
+            {
+                "id": 1008,
+                "name": "All-Purpose Flour",
+                "current": 4,
+                "max": 5,
+                "unit": "lb"
+            },
+            {
+                "id": 1009,
+                "name": "Granulated Sugar",
+                "current": 3,
+                "max": 4,
+                "unit": "lb"
+            },
+            {
+                "id": 1010,
+                "name": "Butter",
+                "current": 8,
+                "max": 16,
+                "unit": "oz"
+            },
+            {
+                "id": 1011,
+                "name": "Milk",
+                "current": 4,
+                "max": 8,
+                "unit": "cups"
+            },
+            {
+                "id": 1012,
+                "name": "Parmesan",
+                "current": 5,
+                "max": 8,
+                "unit": "oz"
+            },
+            {
+                "id": 1013,
+                "name": "Basmati Rice",
+                "current": 2,
+                "max": 5,
+                "unit": "lb"
+            },
+            {
+                "id": 1014,
+                "name": "Eggs",
+                "current": 6,
+                "max": 12,
+                "unit": "units",
+                "hasExpiration": true,
+                "purchaseDate": "2026-08-01",
+                "expirationDate": "2027-06-30"
+            },
+            {
+                "id": 1015,
+                "name": "Heavy Cream",
+                "current": 1,
+                "max": 2,
+                "unit": "cups",
+                "hasExpiration": true,
+                "purchaseDate": "2026-05-20",
+                "expirationDate": "2026-06-15"
+            },
+            {
+                "id": 1016,
+                "name": "Fresh Basil",
+                "current": 0,
+                "max": 2,
+                "unit": "units"
+            },
+            {
+                "id": 1017,
+                "name": "Anchovy Fillets",
+                "current": 0,
+                "max": 6,
+                "unit": "units"
+            }
+        ],
+        "recipes": [
+            {
+                "id": 2001,
+                "name": "Spaghetti Aglio e Olio",
+                "prepTime": "5",
+                "cookTime": "15",
+                "servings": "2",
+                "ingredients": [
+                    {
+                        "item": "Spaghetti",
+                        "amount": "200",
+                        "unit": "g"
+                    },
+                    {
+                        "item": "Olive Oil",
+                        "amount": "3",
+                        "unit": "oz"
+                    },
+                    {
+                        "item": "Garlic",
+                        "amount": "4",
+                        "unit": "units"
+                    },
+                    {
+                        "item": "Sea Salt",
+                        "amount": "1",
+                        "unit": "tsp"
+                    }
+                ],
+                "steps": [
+                    {
+                        "type": "step",
+                        "content": "Bring a large pan of salted water to the boil and cook the spaghetti until just short of tender.",
+                        "timerSeconds": 540
+                    },
+                    {
+                        "type": "step",
+                        "content": "Meanwhile, slice the garlic thinly and warm it gently in the olive oil until pale gold. Do not let it brown."
+                    },
+                    {
+                        "type": "step",
+                        "content": "Drain the pasta, keeping a cup of the water. Toss it through the garlic oil, loosening with the reserved water until glossy."
+                    },
+                    {
+                        "type": "paragraph",
+                        "content": "This is the recipe to cook when the cupboard looks empty. Everything in it keeps for months, which is why it is the one dish you can always make."
+                    }
+                ]
+            },
+            {
+                "id": 2002,
+                "name": "Tomato & Basil Pasta",
+                "prepTime": "10",
+                "cookTime": "25",
+                "servings": "4",
+                "ingredients": [
+                    {
+                        "item": "Spaghetti",
+                        "amount": "200",
+                        "unit": "g"
+                    },
+                    {
+                        "item": "Canned Tomatoes",
+                        "amount": "2",
+                        "unit": "units"
+                    },
+                    {
+                        "item": "Onions",
+                        "amount": "1",
+                        "unit": "units"
+                    },
+                    {
+                        "item": "Garlic",
+                        "amount": "2",
+                        "unit": "units"
+                    },
+                    {
+                        "item": "Olive Oil",
+                        "amount": "2",
+                        "unit": "oz"
+                    },
+                    {
+                        "item": "Fresh Basil",
+                        "amount": "1",
+                        "unit": "units"
+                    }
+                ],
+                "steps": [
+                    {
+                        "type": "step",
+                        "content": "Soften the chopped onion in olive oil over a low heat until translucent, then add the garlic for a further minute."
+                    },
+                    {
+                        "type": "step",
+                        "content": "Add the tomatoes, season, and simmer uncovered until thickened and no longer watery.",
+                        "timerSeconds": 1200
+                    },
+                    {
+                        "type": "step",
+                        "content": "Cook the spaghetti, drain, and fold it through the sauce. Tear the basil over at the last moment."
+                    }
+                ]
+            },
+            {
+                "id": 2003,
+                "name": "Weekend Pancakes",
+                "prepTime": "10",
+                "cookTime": "20",
+                "servings": "4",
+                "ingredients": [
+                    {
+                        "item": "All-Purpose Flour",
+                        "amount": "2",
+                        "unit": "cups"
+                    },
+                    {
+                        "item": "Granulated Sugar",
+                        "amount": "2",
+                        "unit": "tbsp"
+                    },
+                    {
+                        "item": "Baking Powder",
+                        "amount": "1",
+                        "unit": "tbsp"
+                    },
+                    {
+                        "item": "Eggs",
+                        "amount": "2",
+                        "unit": "units"
+                    },
+                    {
+                        "item": "Milk",
+                        "amount": "1",
+                        "unit": "cups"
+                    },
+                    {
+                        "item": "Butter",
+                        "amount": "2",
+                        "unit": "oz"
+                    }
+                ],
+                "steps": [
+                    {
+                        "type": "step",
+                        "content": "Whisk the dry ingredients together in one bowl and the eggs, milk and melted butter in another."
+                    },
+                    {
+                        "type": "step",
+                        "content": "Combine the two with as few strokes as you can manage, then leave the batter to rest.",
+                        "timerSeconds": 600
+                    },
+                    {
+                        "type": "step",
+                        "content": "Cook in a buttered pan over a medium heat, turning once the surface bubbles hold their shape."
+                    }
+                ]
+            }
+        ],
+        "userProfile": {
+            "allergies": [
+                {
+                    "name": "peanuts",
+                    "severity": "moderate",
+                    "dateAdded": "2026-08-01"
+                }
+            ],
+            "alertPreferences": {
+                "showWarnings": true,
+                "blockDangerous": true,
+                "alertLevel": "all",
+                "requireConfirmation": true
+            }
+        },
+        "allergySettings": {},
+        "expirationSettings": {
+            "enableNotifications": true,
+            "warningDays": 3,
+            "autoAddExpiredToShopping": true,
+            "autoRemoveExpiredFromRecipes": true,
+            "dailyExpirationCheck": true,
+            "lastNotificationCheck": null
+        }
+    };
+
+    /*
+     * A fresh deep copy every time. The importer rebuilds what it is given, but
+     * handing out the one live object would let a caller mutate the sample and
+     * quietly change what the *next* person loads.
+     */
+    window.prepwiseSampleData = function () {
+        return JSON.parse(JSON.stringify(SAMPLE));
+    };
+})();

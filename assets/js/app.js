@@ -590,70 +590,96 @@ function updateView() {
 }
 
 // Data Management
+/*
+ * localStorage is an input like any other: it holds whatever a previous build
+ * wrote, whatever an import let through before sanitizeBackup() existed, and
+ * whatever anyone typed into devtools. Repair it on the way in rather than
+ * trusting it for the lifetime of the app.
+ *
+ * Each key gets its own try. They shared one until 2026-08-29, which meant a
+ * single unreadable value skipped every load after it - and because the next
+ * save writes the resulting empty `state` back, unreadable recipes silently
+ * became deleted recipes, taking the allergy profile with them.
+ */
 function loadData() {
     try {
         const inventoryData = localStorage.getItem('prepwise-inventory');
-        const recipesData = localStorage.getItem('prepwise-recipes');
-
-        // localStorage is an input like any other: it holds whatever a previous
-        // build wrote, whatever an import let through before sanitizeBackup()
-        // existed, and whatever anyone typed into devtools. Repair it on the way
-        // in rather than trusting it for the lifetime of the app.
         if (inventoryData) {
             const parsed = JSON.parse(inventoryData);
             state.inventory = Array.isArray(parsed)
                 ? ensureUniqueIds(parsed.map(sanitizeInventoryItem).filter(Boolean))
                 : [];
         }
+    } catch (error) {
+        console.error('Could not read the stored pantry:', error);
+    }
+
+    try {
+        const recipesData = localStorage.getItem('prepwise-recipes');
         if (recipesData) {
             const parsed = JSON.parse(recipesData);
             state.recipes = Array.isArray(parsed)
                 ? ensureUniqueIds(parsed.map(sanitizeRecipe).filter(Boolean))
                 : [];
         }
+    } catch (error) {
+        console.error('Could not read the stored recipes:', error);
+    }
 
+    try {
         // Initialize expiration monitoring after loading data
         initializeExpirationMonitoring();
-
-        // Phase 4: Load user allergy profile
-        loadUserProfile();
     } catch (error) {
-        // No existing data found
+        console.error('Could not start expiration monitoring:', error);
+    }
+
+    // Phase 4: Load user allergy profile (guards itself)
+    loadUserProfile();
+}
+
+/*
+ * Keys whose last write failed. localStorage throws when the quota is gone or
+ * the browser is blocking storage, and a silent catch left the UI showing data
+ * as saved that was not - the one failure mode this app must never have.
+ * A key stays in here until it writes cleanly again, so a persistent failure
+ * warns once rather than on every keystroke.
+ */
+const failedWrites = new Set();
+
+function writeStorage(key, value, label) {
+    try {
+        localStorage.setItem(key, JSON.stringify(value));
+        failedWrites.delete(key);
+        return true;
+    } catch (error) {
+        console.error(`Failed to save ${label}:`, error);
+        if (!failedWrites.has(key)) {
+            failedWrites.add(key);
+            showNotification(
+                `Could not save your ${label}. This browser's storage may be full or blocked — `
+                + 'export a backup before closing this tab.',
+                'error'
+            );
+        }
+        return false;
     }
 }
 
 function saveInventoryToStorage() {
-    try {
-        const dataString = JSON.stringify(state.inventory);
-        localStorage.setItem('prepwise-inventory', dataString);
-    } catch (error) {
-        console.error('❌ Failed to save inventory:', error);
-    }
+    writeStorage('prepwise-inventory', state.inventory, 'pantry');
 }
 
 function saveRecipesToStorage() {
-    try {
-        localStorage.setItem('prepwise-recipes', JSON.stringify(state.recipes));
-    } catch (error) {
-        console.error('Failed to save recipes:', error);
-    }
+    writeStorage('prepwise-recipes', state.recipes, 'recipes');
 }
 
 function saveExpirationSettings() {
-    try {
-        localStorage.setItem('prepwise-expiration-settings', JSON.stringify(state.expirationSettings));
-    } catch (error) {
-        console.error('Failed to save expiration settings:', error);
-    }
+    writeStorage('prepwise-expiration-settings', state.expirationSettings, 'expiration settings');
 }
 
 // Phase 4: User Profile Storage Functions
 function saveUserProfile() {
-    try {
-        localStorage.setItem('prepwise-user-profile', JSON.stringify(state.userProfile));
-    } catch (error) {
-        console.error('Failed to save user profile:', error);
-    }
+    writeStorage('prepwise-user-profile', state.userProfile, 'allergy profile');
 }
 
 function loadUserProfile() {
@@ -3412,17 +3438,27 @@ function cleanPrimitiveMap(value) {
     if (!isPlainObject(value)) return {};
     const out = {};
     let count = 0;
-    for (const key of Object.keys(value)) {
-        if (FORBIDDEN_KEYS.has(key) || count >= IMPORT_LIMITS.settingsKeys) continue;
-        const entry = value[key];
+    for (const rawKey of Object.keys(value)) {
+        if (count >= IMPORT_LIMITS.settingsKeys) break;
+
+        /*
+         * Test the *cleaned* key, never the raw one. cleanString() strips
+         * control and bidi characters, so "__proto__\u0001" cleared a check
+         * against the raw key and then landed as "__proto__" anyway. Harmless
+         * while the values here are primitives and nothing reads this map, but
+         * a guard that only looks like it works is worse than none.
+         * The empty-key check also replaces a trailing `delete out['']`.
+         */
+        const key = cleanString(rawKey, IMPORT_LIMITS.tinyText);
+        if (!key || FORBIDDEN_KEYS.has(key)) continue;
+
+        const entry = value[rawKey];
         const type = typeof entry;
         if (entry === null || type === 'boolean' || type === 'number' || type === 'string') {
-            out[cleanString(key, IMPORT_LIMITS.tinyText)] =
-                type === 'string' ? cleanString(entry, IMPORT_LIMITS.shortText) : entry;
+            out[key] = type === 'string' ? cleanString(entry, IMPORT_LIMITS.shortText) : entry;
             count++;
         }
     }
-    delete out['']; // a key that cleaned away to nothing
     return out;
 }
 
@@ -4229,11 +4265,14 @@ function confirmClearData() {
         state.inventory = [];
         state.recipes = [];
         state.userProfile = emptyUserProfile();
-        state.expirationSettings = {
-            enableAlerts: true,
-            alertDaysBefore: 3,
-            showExpiredItems: true
-        };
+        /*
+         * DEFAULT_EXPIRATION_SETTINGS is the single definition of this shape.
+         * Hand-building it here is how this once lost alertPreferences, and how
+         * it later shipped three field names nothing else reads - leaving
+         * warningDays undefined, so `daysUntilExpiry <= undefined` was false for
+         * every item and nothing flagged as expiring until the next reload.
+         */
+        state.expirationSettings = { ...DEFAULT_EXPIRATION_SETTINGS };
 
         closeClearDataModal();
         updateView();

@@ -77,15 +77,21 @@ function processSimpleEntry() {
                 updatedCount++;
             } else {
                 // Add new item
-                const newItem = {
+                // Every other write into state.inventory goes through the
+                // sanitizer; this one hand-built its item and so produced a
+                // record missing the fields renderers read (hasExpiration,
+                // expirationStatus, daysUntilExpiry) until the next reload.
+                const newItem = sanitizeInventoryItem({
                     id: Date.now() + Math.random(),
                     name: parsed.name,
                     current: parsed.quantity,
                     max: Math.max(parsed.quantity * 2, parsed.quantity + 5), // Reasonable default
                     unit: parsed.unit
-                };
-                state.inventory.push(newItem);
-                addedCount++;
+                });
+                if (newItem) {
+                    state.inventory.push(newItem);
+                    addedCount++;
+                }
             }
         }
     });

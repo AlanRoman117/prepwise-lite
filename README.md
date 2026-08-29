@@ -60,7 +60,16 @@ the browser can call. A few things it deliberately does:
   on — with amounts — so an agent can ground a substitution in what's
   actually on the shelf instead of guessing; `get_meal_plan_candidates` ranks
   saved recipes for weekly planning, prioritising ones that use up an
-  ingredient before it's wasted.
+  ingredient before it's wasted; `get_recipe_timings` batches several
+  recipes' timing in one call so an agent can sequence them across limited
+  stovetop, oven or air-fryer capacity — PrepWise doesn't model appliances at
+  all, that's the agent's job; `get_disruption_snapshot` hands over a full
+  pantry-and-recipe snapshot for planning around a power outage or storm,
+  with a built-in disclaimer that PrepWise tracks no temperature or nutrition
+  data, so any spoilage or nutritional-gap judgment is the agent's own, not a
+  PrepWise calculation; `check_recipe_against_allergies` flags whether a
+  recipe conflicts with an allergy you've actually recorded, never how
+  severe.
 - **Proposed inventory writes are merge-only.** A misread photo may add the
   wrong item; it may never empty your pantry. The replace option is hidden
   for agent-sourced proposals, and the merge choice is enforced independently

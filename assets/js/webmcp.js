@@ -186,6 +186,51 @@
         return `- ${item.name}: ${item.current} of ${item.max} ${item.unit} (${status})`;
     }
 
+    /** "Prep: 10 min · Cook: 30 min · Serves: 4", omitting whatever is blank. */
+    function describeRecipeMeta(recipe) {
+        if (typeof formatRecipeMeta !== 'function') return '';
+        return [
+            recipe.prepTime ? `Prep: ${formatRecipeMeta(recipe.prepTime, 'min')}` : '',
+            recipe.cookTime ? `Cook: ${formatRecipeMeta(recipe.cookTime, 'min')}` : '',
+            recipe.servings ? `Serves: ${formatRecipeMeta(recipe.servings, 'servings')}` : ''
+        ].filter(Boolean).join(' · ');
+    }
+
+    /*
+     * A step's text lives in `content` — `text` is not a field, and reading it
+     * once returned a recipe whose every step was blank. Paragraphs are notes
+     * rather than instructions, so they are not numbered, exactly as the
+     * recipe modal renders them.
+     */
+    function describeMethod(steps) {
+        let number = 0;
+        return steps.map(entry => {
+            const step = typeof entry === 'string' ? { content: entry } : (entry || {});
+            const body = step.content || '';
+            const timer = step.timerSeconds ? ` [timer: ${clockOf(step.timerSeconds)}]` : '';
+            if (step.type === 'paragraph') return `${body}${timer}`;
+            number += 1;
+            return `${number}. ${body}${timer}`;
+        });
+    }
+
+    /** Find one recipe by name/partial name, or null. */
+    function findRecipe(wanted) {
+        return recipes().find(r => String(r.name).toLowerCase().includes(wanted)) || null;
+    }
+
+    /*
+     * Say what *is* here. Watching a real agent, a bare "no match" cost it an
+     * extra round trip to list_recipes before it could answer; naming the
+     * cookbook's contents lets it correct itself from this one reply.
+     */
+    function recipeNotFound(wanted) {
+        const names = recipes().map(r => r.name).slice(0, 40);
+        return failure(names.length
+            ? `No recipe matches "${wanted}". The cookbook has: ${names.join(', ')}.`
+            : `No recipe matches "${wanted}" — there are no recipes saved yet.`);
+    }
+
     // ---------------------------------------------------------------------
     // Tool definitions
     // ---------------------------------------------------------------------
@@ -358,48 +403,15 @@
                 const wanted = String((args && args.name) || '').trim().toLowerCase();
                 if (!wanted) return failure('A recipe name is required.');
 
-                const recipe = recipes().find(r => String(r.name).toLowerCase().includes(wanted));
-                if (!recipe) {
-                    /*
-                     * Say what *is* here. Watching a real agent, a bare "no
-                     * match" cost it an extra round trip to list_recipes before
-                     * it could answer; naming the cookbook's contents lets it
-                     * correct itself from this one reply.
-                     */
-                    const names = recipes().map(r => r.name).slice(0, 40);
-                    return failure(names.length
-                        ? `No recipe matches "${wanted}". The cookbook has: ${names.join(', ')}.`
-                        : `No recipe matches "${wanted}" — there are no recipes saved yet.`);
-                }
+                const recipe = findRecipe(wanted);
+                if (!recipe) return recipeNotFound(wanted);
 
                 // Never touch .ingredients / .steps directly: a record from an
                 // older build or a file may not have them.
                 const ings = typeof recipeIngredients === 'function' ? recipeIngredients(recipe) : [];
                 const steps = typeof recipeSteps === 'function' ? recipeSteps(recipe) : [];
-
-                const meta = typeof formatRecipeMeta === 'function'
-                    ? [
-                        recipe.prepTime ? `Prep: ${formatRecipeMeta(recipe.prepTime, 'min')}` : '',
-                        recipe.cookTime ? `Cook: ${formatRecipeMeta(recipe.cookTime, 'min')}` : '',
-                        recipe.servings ? `Serves: ${formatRecipeMeta(recipe.servings, 'servings')}` : ''
-                    ].filter(Boolean).join(' · ')
-                    : '';
-
-                /*
-                 * A step's text lives in `content` — `text` is not a field, and
-                 * reading it returned a recipe whose every step was blank.
-                 * Paragraphs are notes rather than instructions, so they are not
-                 * numbered, exactly as the recipe modal renders them.
-                 */
-                let number = 0;
-                const method = steps.map(entry => {
-                    const step = typeof entry === 'string' ? { content: entry } : (entry || {});
-                    const body = step.content || '';
-                    const timer = step.timerSeconds ? ` [timer: ${clockOf(step.timerSeconds)}]` : '';
-                    if (step.type === 'paragraph') return `${body}${timer}`;
-                    number += 1;
-                    return `${number}. ${body}${timer}`;
-                });
+                const meta = describeRecipeMeta(recipe);
+                const method = describeMethod(steps);
 
                 return reply([
                     recipe.name,
@@ -480,13 +492,8 @@
                 const wanted = String((args && args.name) || '').trim().toLowerCase();
                 if (!wanted) return failure('A recipe name is required.');
 
-                const recipe = recipes().find(r => String(r.name).toLowerCase().includes(wanted));
-                if (!recipe) {
-                    const names = recipes().map(r => r.name).slice(0, 40);
-                    return failure(names.length
-                        ? `No recipe matches "${wanted}". The cookbook has: ${names.join(', ')}.`
-                        : `No recipe matches "${wanted}" — there are no recipes saved yet.`);
-                }
+                const recipe = findRecipe(wanted);
+                if (!recipe) return recipeNotFound(wanted);
 
                 const gaps = typeof getMissingIngredientsWithContext === 'function'
                     ? getMissingIngredientsWithContext(recipe)
@@ -578,6 +585,161 @@
                     ? `${ranked.length} recipes; showing the top ${shown.length} for planning.`
                     : `${ranked.length} recipe${ranked.length === 1 ? '' : 's'}, ranked for planning:`;
                 return reply([header, ''].concat(lines).join('\n'));
+            }
+        },
+
+        {
+            name: PREFIX + 'get_recipe_timings',
+            description:
+                'Get prep/cook time, servings, and the full numbered method with any step '
+                + 'timers for SEVERAL recipes at once. Use this to build a shared cooking '
+                + 'timeline across recipes — for example sequencing them across a limited '
+                + 'number of burners, one oven, an air fryer or a slow cooker. PrepWise does '
+                + 'not know what appliances exist and does not schedule anything itself; it '
+                + 'only supplies each recipe\'s timing so the scheduling can be worked out.',
+            annotations: { readOnlyHint: true, untrustedContentHint: true },
+            inputSchema: {
+                type: 'object',
+                properties: {
+                    names: {
+                        type: 'array',
+                        description: 'Recipe names, or parts of them, up to 10 at a time.',
+                        maxItems: 10,
+                        items: { type: 'string' }
+                    }
+                },
+                required: ['names']
+            },
+            execute(args) {
+                const wanted = args && Array.isArray(args.names) ? args.names : null;
+                if (!wanted || !wanted.length) return failure('At least one recipe name is required.');
+                if (wanted.length > 10) {
+                    return failure(`That is ${wanted.length} recipes; 10 is the most that can be `
+                        + 'looked up at once.');
+                }
+
+                const blocks = wanted.map(rawName => {
+                    const name = String(rawName || '').trim().toLowerCase();
+                    if (!name) return '(a blank recipe name was skipped)';
+
+                    const recipe = findRecipe(name);
+                    if (!recipe) return `"${rawName}": no matching recipe.`;
+
+                    const steps = typeof recipeSteps === 'function' ? recipeSteps(recipe) : [];
+                    const meta = describeRecipeMeta(recipe);
+                    const method = describeMethod(steps);
+                    return [`${recipe.name}${meta ? ' — ' + meta : ''}:`, ...method].join('\n');
+                });
+
+                return reply(blocks.join('\n\n'));
+            }
+        },
+
+        {
+            name: PREFIX + 'get_disruption_snapshot',
+            description:
+                'A full-kitchen snapshot for planning around a power outage or severe weather: '
+                + 'every pantry item, the current shopping-list gaps, and which recipes can be '
+                + 'made right now. PrepWise tracks no refrigeration, freezer, temperature or '
+                + 'nutrition data, so it makes no claim here about what is still safe to eat, '
+                + 'how quickly something will spoil, or whether a diet has a nutritional gap — '
+                + 'apply your own general food-safety and nutrition knowledge to this data to '
+                + 'make that call.',
+            annotations: { readOnlyHint: true, untrustedContentHint: true },
+            inputSchema: {
+                type: 'object',
+                properties: {
+                    scenario: {
+                        type: 'string',
+                        enum: ['power-outage', 'severe-weather'],
+                        description: 'What is being planned for. Only changes the framing, not the data.'
+                    },
+                    limit: {
+                        type: 'number',
+                        description: 'Maximum pantry items to list (1-100). Defaults to 50.'
+                    }
+                }
+            },
+            execute(args) {
+                freshen();
+                const scenario = (args && args.scenario) || null;
+                const limit = Math.min(Math.max(Number(args && args.limit) || 50, 1), 100);
+
+                const framing = scenario === 'power-outage'
+                    ? 'Planning for a power outage.'
+                    : scenario === 'severe-weather'
+                        ? 'Planning ahead of severe weather.'
+                        : 'A full kitchen snapshot for planning around a disruption.';
+
+                /*
+                 * The safety disclaimer goes right after the framing, before
+                 * anything that could be long enough to get truncated by
+                 * MAX_OUTPUT. It must never be the part that gets cut off.
+                 */
+                const disclaimer = 'PrepWise tracks no refrigeration, freezer, temperature or '
+                    + 'nutrition data — nothing below is a spoilage, safety or nutritional-gap '
+                    + 'judgment. That reasoning is yours to apply to this data.';
+
+                const items = inventory();
+                const shownItems = items.slice(0, limit);
+                const pantryBlock = items.length
+                    ? [`Pantry (${items.length} item${items.length === 1 ? '' : 's'}`
+                        + (shownItems.length < items.length ? `, showing ${shownItems.length}` : '') + '):', '']
+                        .concat(shownItems.map(describeItem))
+                    : ['The pantry is currently empty.'];
+
+                const shoppingBlock = typeof buildShoppingListText === 'function'
+                    ? ['', buildShoppingListText()]
+                    : [];
+
+                const canMake = typeof canMakeRecipe === 'function' ? canMakeRecipe : () => false;
+                const makeable = recipes().filter(canMake).map(r => r.name);
+                const recipeBlock = ['', makeable.length
+                    ? `Can make right now: ${makeable.join(', ')}.`
+                    : 'Nothing in the cookbook can be made from what is on hand right now.'];
+
+                return reply([
+                    framing, disclaimer, '',
+                    ...pantryBlock, ...shoppingBlock, ...recipeBlock
+                ].join('\n'));
+            }
+        },
+
+        {
+            name: PREFIX + 'check_recipe_against_allergies',
+            description:
+                'Check one recipe against the allergies recorded in PrepWise, and say which of '
+                + 'them it conflicts with, if any. Use this before suggesting a recipe to someone '
+                + 'with a recorded allergy, or before adapting a dish for them. Does not disclose '
+                + 'how severe a conflict is — the same limit Settings promises for every assistant.',
+            annotations: { readOnlyHint: true, untrustedContentHint: true },
+            inputSchema: {
+                type: 'object',
+                properties: {
+                    name: { type: 'string', description: 'The recipe name, or part of it.' }
+                },
+                required: ['name']
+            },
+            execute(args) {
+                const wanted = String((args && args.name) || '').trim().toLowerCase();
+                if (!wanted) return failure('A recipe name is required.');
+
+                const recipe = findRecipe(wanted);
+                if (!recipe) return recipeNotFound(wanted);
+
+                if (typeof analyzeRecipeAllergies !== 'function') {
+                    return failure('Allergy analysis is unavailable.');
+                }
+
+                // Only allergen names ever cross this boundary — never
+                // `.severity` or `.safetyLevel`, which encode how severe.
+                const analysis = analyzeRecipeAllergies(recipe);
+                if (!analysis.hasConflicts) {
+                    return reply(`${recipe.name} does not conflict with any allergy recorded in PrepWise.`);
+                }
+
+                const names = analysis.conflicts.map(c => c.name);
+                return reply(`${recipe.name} conflicts with a recorded allergy: ${names.join(', ')}.`);
             }
         },
 

@@ -3693,6 +3693,12 @@ let pendingImportData = null;
 // agent's proposal cannot be turned into a replace-everything, whatever the
 // radio in the DOM currently says.
 let pendingImportSource = 'file';
+/*
+ * Rows the user unticked in the preview, as indices into
+ * pendingImportData.inventory. Held beside the data rather than as a flag on
+ * each item, so nothing that can reach storage carries a UI concern.
+ */
+let pendingImportExclusions = new Set();
 
 /**
  * Stage sanitized data for import and open the preview.
@@ -3704,6 +3710,7 @@ let pendingImportSource = 'file';
 function stageImport(backup, notes = [], source = 'file') {
     pendingImportData = backup;
     pendingImportSource = source;
+    pendingImportExclusions = new Set();
     showImportModal(backup, notes, source);
 }
 
@@ -3735,11 +3742,15 @@ function handleImportFile(event) {
             // reference, so nothing downstream can be surprised by its shape.
             const { backup, notes } = sanitizeBackup(parsed);
 
-            // Store backup data
-            pendingImportData = backup;
-
-            // Show import modal with preview
-            showImportModal(backup, notes);
+            /*
+             * Through stageImport(), not around it. Assigning pendingImportData
+             * here directly left pendingImportSource and pendingImportExclusions
+             * untouched, so a file import inherited whatever the last proposal
+             * had set - and stale exclusions would have silently dropped rows
+             * from the user's own backup. Only a focus-trapped modal made that
+             * unreachable, which is not a guarantee worth resting on.
+             */
+            stageImport(backup, notes);
         } catch (error) {
             console.error('Failed to read backup file:', error);
             showNotification('Failed to read backup file: ' + error.message, 'error');
@@ -3804,7 +3815,18 @@ const IMPORT_WORDING = {
         mergeOnly: true,
         // The user did not write this, so a count is not enough. See
         // renderImportDetails().
-        details: 'Every item it suggests:'
+        details: 'Every item it suggests:',
+        /*
+         * ...and a count is not enough to *correct*, either. A vision model
+         * miscounts what it cannot see - six oranges in the photo is eight in
+         * the bag once the buried ones are counted - so the preview is a
+         * refining pass, not a yes/no gate: quantity and unit are editable and
+         * any row can be dropped before it lands.
+         *
+         * Only this source. A backup file's rows are the user's own export, and
+         * 'agent-recipe' carries no inventory at all.
+         */
+        editable: true
     },
     /*
      * A recipe an assistant wrote. Carries no `inventory` key at all, and
@@ -3874,10 +3896,57 @@ function renderImportDetails(backup, source) {
 
     const rows = [];
 
-    (backup.inventory || []).forEach(item => {
-        const skipped = heldItems.has(key(item.name));
-        const amount = `${item.current} ${item.unit || 'units'}`.trim();
-        rows.push(row(item.name, skipped ? 'already in your pantry — skipped' : amount, skipped));
+    /*
+     * An editable row. The name is deliberately fixed: changing it would change
+     * whether the merge sees a collision, so the row would have to re-decide
+     * between "will add" and "already in your pantry" as you typed. A wrong
+     * name is a reason to reject the proposal, not to patch it here.
+     *
+     * Every value is agent-supplied, so escapeHtml() applies inside the
+     * attributes too - an unescaped value="..." is exactly how the recipe
+     * ingredient row leaked once before, and only the CSP stopped it there.
+     */
+    const editRow = (item, index) => `
+        <li class="import-detail-row">
+            <span class="import-detail-main">
+                <span class="import-detail-name">${escapeHtml(item.name)}</span>
+            </span>
+            <span class="import-detail-edit">
+                <input type="number" class="import-detail-qty"
+                       data-change-action="import-row-quantity" data-index="${index}"
+                       min="0" max="${IMPORT_LIMITS.quantity}" step="any"
+                       value="${escapeHtml(String(item.current ?? 0))}"
+                       aria-label="Quantity for ${escapeHtml(item.name)}">
+                <select class="import-detail-unit"
+                        data-change-action="import-row-unit" data-index="${index}"
+                        aria-label="Unit for ${escapeHtml(item.name)}">
+                    ${UNITS.map(unit => `<option value="${escapeHtml(unit)}"${
+                        unit === (item.unit || 'units') ? ' selected' : ''
+                    }>${escapeHtml(unit)}</option>`).join('')}
+                </select>
+                <label class="import-detail-drop">
+                    <input type="checkbox" data-change-action="import-row-include"
+                           data-index="${index}" checked
+                           aria-label="Add ${escapeHtml(item.name)} to the pantry">
+                    <span>Add</span>
+                </label>
+            </span>
+        </li>`;
+
+    const editable = !!IMPORT_WORDING[source]?.editable;
+
+    (backup.inventory || []).forEach((item, index) => {
+        // A duplicate is never editable: the merge will pass over it whatever
+        // the quantity says, so an editable field would be a lie.
+        if (heldItems.has(key(item.name))) {
+            rows.push(row(item.name, 'already in your pantry — skipped', true));
+            return;
+        }
+        if (editable) {
+            rows.push(editRow(item, index));
+            return;
+        }
+        rows.push(row(item.name, `${item.current} ${item.unit || 'units'}`.trim(), false));
     });
 
     (backup.recipes || []).forEach(recipe => {
@@ -3979,11 +4048,102 @@ function closeImportModal() {
     }
     pendingImportData = null;
     pendingImportSource = 'file';
+    pendingImportExclusions = new Set();
+}
+
+/**
+ * The staged item a preview control belongs to, or null.
+ *
+ * Edits land on pendingImportData, but nothing downstream trusts them for
+ * having been there: effectiveImportData() re-runs sanitizeInventoryItem() over
+ * the lot. The DOM is editable by anything running in the page, which is the
+ * same reason confirmImport() re-derives the merge method from
+ * pendingImportSource instead of believing the radio.
+ */
+function importRowItem(control) {
+    const index = Number(control.dataset.index);
+    if (!Number.isInteger(index)) return null;
+    return pendingImportData?.inventory?.[index] || null;
+}
+
+function setImportRowQuantity(input) {
+    const item = importRowItem(input);
+    if (!item) return;
+
+    const raw = String(input.value).trim();
+    const parsed = Number(raw);
+    const clamped = Math.min(
+        Math.max(raw !== '' && Number.isFinite(parsed) ? parsed : 0, 0),
+        IMPORT_LIMITS.quantity
+    );
+
+    // Correct the field in place and say so, rather than letting it go on
+    // showing a figure the app is not using. Same contract as clampNumberField.
+    if (String(clamped) !== raw) {
+        input.value = String(clamped);
+        input.classList.add('is-corrected');
+        setTimeout(() => input.classList.remove('is-corrected'), 1400);
+    }
+
+    item.current = clamped;
+    // sanitizeInventoryItem() floors max at current and at 1. Keep the staged
+    // record consistent with that, or the preview and the stored item disagree.
+    item.max = Math.max(Number(item.max) || 0, clamped, 1);
+}
+
+function setImportRowUnit(select) {
+    const item = importRowItem(select);
+    if (!item) return;
+    item.unit = UNITS.includes(select.value) ? select.value : 'units';
+}
+
+function setImportRowIncluded(checkbox) {
+    const index = Number(checkbox.dataset.index);
+    if (!Number.isInteger(index)) return;
+
+    if (checkbox.checked) pendingImportExclusions.delete(index);
+    else pendingImportExclusions.add(index);
+
+    // Unticked rows stay listed and visibly struck through. Same principle as a
+    // skipped duplicate: "you will not get this" is information, not decoration.
+    const row = checkbox.closest('.import-detail-row');
+    if (row) row.classList.toggle('import-detail-dropped', !checkbox.checked);
+}
+
+/**
+ * What the user actually agreed to, as opposed to what arrived.
+ *
+ * Only editable sources are rebuilt; everything else passes through untouched,
+ * so a backup file still imports exactly what validateBackup() accepted.
+ */
+function effectiveImportData() {
+    if (!IMPORT_WORDING[pendingImportSource]?.editable) return pendingImportData;
+
+    const inventory = (pendingImportData.inventory || [])
+        .filter((item, index) => !pendingImportExclusions.has(index))
+        .map(sanitizeInventoryItem)
+        .filter(Boolean);
+
+    return { ...pendingImportData, inventory };
 }
 
 // Confirm import
 function confirmImport() {
     if (!pendingImportData) return;
+
+    const backup = effectiveImportData();
+
+    /*
+     * Unticking every row is a decision, not a confirmation. Applying it would
+     * close the modal and report a successful import that added nothing.
+     * Editable sources only, so an empty backup file behaves as it always has.
+     */
+    if (IMPORT_WORDING[pendingImportSource]?.editable
+        && !(backup.inventory || []).length
+        && !(backup.recipes || []).length) {
+        showNotification('Nothing is ticked to add — tick a row, or cancel.', 'error');
+        return;
+    }
 
     // Read the radio, then overrule it for sources that may only ever merge.
     // The DOM is editable; the source this data arrived through is not.
@@ -3991,9 +4151,9 @@ function confirmImport() {
     const importMethod = IMPORT_WORDING[pendingImportSource]?.mergeOnly ? 'merge' : chosen;
 
     if (importMethod === 'merge') {
-        mergeBackupData(pendingImportData);
+        mergeBackupData(backup);
     } else {
-        replaceAllData(pendingImportData);
+        replaceAllData(backup);
     }
 
     closeImportModal();
@@ -4643,7 +4803,10 @@ const CHANGE_ACTIONS = {
     'allergy-severity': el => setAllergySeverity(el.dataset.allergen, el.value),
     'text-scale': el => setTextScale(el.value),
     'theme': el => setTheme(el.value),
-    'agent-tools': el => window.prepwiseAgent?.setEnabled(el.checked)
+    'agent-tools': el => window.prepwiseAgent?.setEnabled(el.checked),
+    'import-row-quantity': el => setImportRowQuantity(el),
+    'import-row-unit': el => setImportRowUnit(el),
+    'import-row-include': el => setImportRowIncluded(el)
 };
 
 /**

@@ -2766,6 +2766,54 @@ input.is-corrected {
     font-style: italic;
 }
 
+/* An assistant's proposal is correctable in place: a vision model's count is a
+   starting point, not a fact. Laid out on one line beside the name so the panel
+   still reads as a list rather than turning into a form. */
+.import-detail-edit {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    flex-shrink: 0;
+}
+
+.import-detail-qty,
+.import-detail-unit {
+    padding: 0.25rem 0.375rem;
+    font-size: 0.875rem;
+    color: var(--n-t-800);
+    background-color: var(--field);
+    border: 1px solid var(--border-soft);
+    border-radius: 0.375rem;
+}
+
+/* Wide enough for four digits and a decimal without the spinner clipping. */
+.import-detail-qty {
+    width: 5rem;
+    text-align: right;
+}
+
+/* The tick that decides whether the row lands at all. */
+.import-detail-drop {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.8125rem;
+    color: var(--n-t-600);
+    cursor: pointer;
+}
+
+/* Unticked: still listed, visibly not coming. The fields stay legible so the
+   row can be reinstated without re-reading the proposal. */
+.import-detail-dropped .import-detail-name {
+    opacity: 0.55;
+    text-decoration: line-through;
+}
+
+.import-detail-dropped .import-detail-qty,
+.import-detail-dropped .import-detail-unit {
+    opacity: 0.55;
+}
+
 /* A copy that gives no feedback reads as a copy that did not happen. The
    button says so itself for two seconds, where the eye already is. */
 button.is-confirmed,

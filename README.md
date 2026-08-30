@@ -55,6 +55,13 @@ the browser can call. A few things it deliberately does:
   through the same validation and sanitization a real backup file gets, and
   opens the same import preview for you to confirm — an agent gets no
   shortcut a hostile file wouldn't get.
+- **The preview is a refining pass, not a yes/no gate.** A vision model
+  miscounts what it can't see — six oranges in the photo is eight in the bag
+  once the buried ones are counted. So an agent's proposed items are listed
+  with an editable quantity and unit and an Add tick: correct what it misread,
+  drop what you don't want, then confirm. Edits are re-sanitized on the way
+  through, exactly like anything else arriving from outside; nothing is trusted
+  for having been in the page.
 - **Reads go beyond a plain pantry dump.** `get_expiring_items` ranks what's
   expiring soonest; `get_recipe_gaps` reports exactly what a recipe is short
   on — with amounts — so an agent can ground a substitution in what's
